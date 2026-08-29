@@ -1,0 +1,178 @@
+openapi: 3.1.0
+
+info:
+  title: GophKeeper system API
+  version: 0.1.0
+  description: |
+    Данный документ содержит документацию взаимодействия с клиент-серверной системой,
+    позволяющей пользователю хранить логины, пароли, бинарные данные и 
+    прочую приватную информацию.
+
+tags:
+  - name: Auth
+    description: Методы авторизации
+
+paths:
+  /api/user/register:
+    post:
+      summary: Регистрация пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ login, password ]
+              properties:
+                login:
+                  type: string
+                  description: Логин
+                password:
+                  type: string
+                  description: Пароль
+      responses:
+        200:
+          description: 'Успешная регистрация'
+          headers:
+            Authorization:
+              $ref: '#/components/headers/Authorization'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserRes'
+        400:
+          $ref: '#/components/responses/400'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/user/login:
+    post:
+      summary: Аутентификация пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ login, password ]
+              properties:
+                login:
+                  type: string
+                  description: Логин
+                password:
+                  type: string
+                  description: Пароль
+      responses:
+        200:
+          description: 'Успешная аутентификация'
+          headers:
+            Authorization:
+              $ref: '#/components/headers/Authorization'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/invalid_login_pass'
+        500:
+          $ref: '#/components/responses/500'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT-токен, полученный при регистрации (`POST /api/user/register`) или входе (`POST /api/user/login`).
+        В ответе этих методов токен возвращается в заголовке `Authorization` (`Bearer <token>`)
+        и дублируется в теле JSON (поле `token`).
+        В последующих запросах передаётся в заголовке `Authorization`.
+  headers:
+    Authorization:
+      description: |
+        JWT-токен сессии в формате `Bearer <token>`.
+        Возвращается при успешной регистрации и входе.
+      schema:
+        type: string
+      example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+  responses:
+    '400':
+      description: 'Неверный формат запроса'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          examples:
+            bind:
+              summary: Bind Example
+              value: { "msg": "bind" }
+            validate:
+              summary: Validate Example
+              value: { "msg": "validate" }
+    '401':
+      description: 'Пользователь не авторизован'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "user unauthorized" }
+    '403':
+      description: 'Ошибка проверки прав доступа'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "access forbidden" }
+    '404':
+      description: 'Объект не найден'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "not found" }
+    '409':
+      description: 'Логин уже занят'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "login is already taken" }
+    '500':
+      description: 'Внутренняя ошибка сервера'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "internal server error" }
+    'invalid_login_pass':
+      description: 'Неверная пара логин/пароль'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "invalid login/password pair" }
+  schemas:
+    AuthUserRes:
+      type: object
+      required: [ user, token ]
+      properties:
+        user:
+          $ref: './common/user.yml#/User'
+        token:
+          type: string
+          description: JWT-токен (дублирует значение из заголовка Authorization)
+    UnsuccessfulResponse:
+      type: object
+      required: [ msg ]
+      properties:
+        msg:
+          type: string
