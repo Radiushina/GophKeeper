@@ -1,0 +1,11 @@
+User:
+  type: object
+  required: [id, login]
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Идентификатор
+    login:
+      type: string
+      description: Логин

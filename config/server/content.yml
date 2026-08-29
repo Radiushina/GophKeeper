@@ -1,0 +1,13 @@
+server:
+  http:
+    address: ":8080"
+client:
+  http:
+    address: "http://localhost:8080"
+database:
+  dsn: ""
+auth:
+  jwt_secret: ""
+  jwt_ttl: 24h
+log:
+  level: info
