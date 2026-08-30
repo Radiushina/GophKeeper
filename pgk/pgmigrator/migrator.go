@@ -4,13 +4,13 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // import pg driver
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"go.uber.org/zap"
 )
 
 const (
@@ -18,7 +18,14 @@ const (
 	_timeout  = time.Second
 )
 
-func Migrate(dsn, migrationsPath string) (err error) {
+func migrateLog(log *zap.Logger, msg string) {
+	if log == nil {
+		return
+	}
+	log.Info(msg)
+}
+
+func Migrate(dsn, migrationsPath string, log *zap.Logger) (err error) {
 	var (
 		attempts = _attempts
 		m        *migrate.Migrate
@@ -29,7 +36,7 @@ func Migrate(dsn, migrationsPath string) (err error) {
 		if err == nil {
 			break
 		}
-		log.Printf("migrate: postgres is trying to connect")
+		migrateLog(log, "migrate: postgres is trying to connect")
 		time.Sleep(_timeout)
 		attempts--
 	}
@@ -47,15 +54,15 @@ func Migrate(dsn, migrationsPath string) (err error) {
 	}
 
 	if errors.Is(err, migrate.ErrNoChange) {
-		log.Printf("migrate: no change")
+		migrateLog(log, "migrate: no change")
 		return nil
 	}
 
-	log.Printf("migrate: up success")
+	migrateLog(log, "migrate: up success")
 	return nil
 }
 
-func MigrateFromEmbeddedFS(fs embed.FS, migrationsPath string, dsn string) (err error) {
+func MigrateFromEmbeddedFS(fs embed.FS, migrationsPath string, dsn string, log *zap.Logger) (err error) {
 	d, err := iofs.New(fs, migrationsPath)
 	if err != nil {
 		return fmt.Errorf("migrateFromEmbeddedFS: %w", err)
@@ -71,7 +78,7 @@ func MigrateFromEmbeddedFS(fs embed.FS, migrationsPath string, dsn string) (err 
 			break
 		}
 
-		log.Printf("migrate: postgres is trying to connect")
+		migrateLog(log, "migrate: postgres is trying to connect")
 		time.Sleep(_timeout)
 		attempts--
 	}
@@ -89,10 +96,10 @@ func MigrateFromEmbeddedFS(fs embed.FS, migrationsPath string, dsn string) (err 
 	}
 
 	if errors.Is(err, migrate.ErrNoChange) {
-		log.Printf("migrate: no change")
+		migrateLog(log, "migrate: no change")
 		return nil
 	}
 
-	log.Printf("migrate: up success")
+	migrateLog(log, "migrate: up success")
 	return nil
 }

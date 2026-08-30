@@ -2,28 +2,34 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"reflect"
-	"strings"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 	"github.com/spf13/pflag"
+	"go.uber.org/zap"
 )
 
 const (
-	defaultConfigPath = "config/server/content.yml"
+	defaultConfigPath = "config/content.yml"
 	structTagDelim    = "."
 	envPrefix         = "GOPHKEEPER_"
 )
+
+type fieldMeta struct {
+	path string
+	env  string
+	flag string
+}
 
 type Loader struct {
 	k          *koanf.Koanf
 	configPath string
 	flags      *pflag.FlagSet
+	fields     []fieldMeta
 }
 
 func NewLoader(configPath string) *Loader {
@@ -34,7 +40,12 @@ func NewLoader(configPath string) *Loader {
 		k:          koanf.New(structTagDelim),
 		configPath: configPath,
 		flags:      pflag.NewFlagSet("config", pflag.ContinueOnError),
+		fields:     collectFields(reflect.TypeOf(Config{}), ""),
 	}
+}
+
+func (l *Loader) IgnoreUnknownFlags() {
+	l.flags.ParseErrorsAllowlist.UnknownFlags = true
 }
 
 func (l *Loader) Load() (*Config, error) {
@@ -76,84 +87,98 @@ func (l *Loader) loadDefaults() error {
 
 func (l *Loader) loadYAML() error {
 	if _, err := os.Stat(l.configPath); os.IsNotExist(err) {
-		log.Printf("yaml config not found at %s, using defaults+env+flags", l.configPath)
+		logInfo("yaml config not found, using defaults+env+flags", zap.String("path", l.configPath))
 		return nil
 	}
 	if err := l.k.Load(file.Provider(l.configPath), yaml.Parser()); err != nil {
 		return fmt.Errorf("loadYAML: %w", err)
 	}
-	log.Printf("yaml config loaded from %s", l.configPath)
+	logInfo("yaml config loaded", zap.String("path", l.configPath))
 	return nil
 }
 
 func (l *Loader) loadEnv() error {
-	return l.setFromEnv(reflect.TypeOf(Config{}), "")
+	for _, f := range l.fields {
+		if f.env == "" {
+			continue
+		}
+		raw, ok := lookupEnv(f.env)
+		if !ok {
+			continue
+		}
+		if err := l.k.Set(f.path, raw); err != nil {
+			return fmt.Errorf("loadEnv: set %s: %w", f.path, err)
+		}
+	}
+	return nil
+}
+
+func lookupEnv(name string) (string, bool) {
+	if raw, ok := os.LookupEnv(name); ok {
+		return raw, true
+	}
+	return os.LookupEnv(envPrefix + name)
 }
 
 func (l *Loader) loadFlags() error {
-	flagMapping := map[string]string{
-		"http-address": "server.http.address",
-		"dsn":          "database.dsn",
-		"jwt-secret":   "auth.jwt_secret",
-		"log-level":    "log.level",
-	}
-
 	var visitErr error
-	l.flags.Visit(func(f *pflag.Flag) {
-		if visitErr != nil {
+	l.flags.Visit(func(flag *pflag.Flag) {
+		if visitErr != nil || flag.Name == "config" {
 			return
 		}
-		path, ok := flagMapping[f.Name]
-		if !ok {
+		for _, f := range l.fields {
+			if f.flag != flag.Name {
+				continue
+			}
+			if err := l.k.Set(f.path, flag.Value.String()); err != nil {
+				visitErr = fmt.Errorf("loadFlags: set %s: %w", f.path, err)
+			}
 			return
-		}
-		if err := l.k.Set(path, f.Value.String()); err != nil {
-			visitErr = fmt.Errorf("loadFlags: set %s: %w", path, err)
 		}
 	})
 	return visitErr
 }
 
-func (l *Loader) setFromEnv(t reflect.Type, prefix string) error {
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		tag := f.Tag.Get("koanf")
-		if tag == "" || tag == "-" {
-			continue
-		}
-		path := tag
-		if prefix != "" {
-			path = prefix + structTagDelim + tag
-		}
-
-		if f.Type.Kind() == reflect.Struct {
-			if err := l.setFromEnv(f.Type, path); err != nil {
-				return err
-			}
-			continue
-		}
-
-		envName := envPrefix + strings.ToUpper(strings.ReplaceAll(path, structTagDelim, "_"))
-		raw, ok := os.LookupEnv(envName)
-		if !ok {
-			continue
-		}
-
-		var value any = raw
-		if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.String {
-			value = strings.Split(raw, ",")
-		}
-		if err := l.k.Set(path, value); err != nil {
-			return fmt.Errorf("loadEnv: set %s: %w", path, err)
-		}
-	}
-	return nil
-}
-
 func (l *Loader) defineFlags() {
 	l.flags.StringVar(&l.configPath, "config", l.configPath, "path to YAML config")
-	l.flags.String("http-address", "", "HTTP listen address")
-	l.flags.String("dsn", "", "Postgres DSN")
-	l.flags.String("jwt-secret", "", "HMAC secret for JWT")
-	l.flags.String("log-level", "", "zap log level")
+	for _, f := range l.fields {
+		if f.flag == "" {
+			continue
+		}
+		l.flags.String(f.flag, "", f.path)
+	}
+}
+
+func collectFields(t reflect.Type, prefix string) []fieldMeta {
+	var out []fieldMeta
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+		koanfTag := sf.Tag.Get("koanf")
+		if koanfTag == "" || koanfTag == "-" {
+			continue
+		}
+		path := koanfTag
+		if prefix != "" {
+			path = prefix + structTagDelim + koanfTag
+		}
+		if sf.Type.Kind() == reflect.Struct {
+			out = append(out, collectFields(sf.Type, path)...)
+			continue
+		}
+		out = append(out, fieldMeta{
+			path: path,
+			env:  sf.Tag.Get("env"),
+			flag: sf.Tag.Get("flag"),
+		})
+	}
+	return out
+}
+
+func logInfo(msg string, fields ...zap.Field) {
+	zl, err := zap.NewProduction()
+	if err != nil {
+		return
+	}
+	defer func() { _ = zl.Sync() }()
+	zl.Info(msg, fields...)
 }

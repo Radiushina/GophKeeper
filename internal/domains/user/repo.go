@@ -44,18 +44,22 @@ func (r *UsersRepo) CreateUser(ctx context.Context, login, hashedPassword string
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return User{}, fmt.Errorf("failed to query insert user: %w", err)
+		return User{}, wrapUserInsertErr(err)
 	}
 
 	u, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[User])
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return User{}, fmt.Errorf("%w: %w", ErrUserAlreadyExists, err)
-		}
-		return User{}, fmt.Errorf("failed to create user: %w", err)
+		return User{}, wrapUserInsertErr(err)
 	}
 	return u, nil
+}
+
+func wrapUserInsertErr(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+		return fmt.Errorf("%w: %w", ErrUserAlreadyExists, err)
+	}
+	return fmt.Errorf("failed to create user: %w", err)
 }
 
 func (r *UsersRepo) GetByLogin(ctx context.Context, login string) (User, error) {

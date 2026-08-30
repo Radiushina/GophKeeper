@@ -23,3 +23,13 @@ func (c *Config) Validate() error {
 	}
 	return nil
 }
+
+func (c *Config) ValidateClient() error {
+	if strings.TrimSpace(c.Client.HTTP.Address) == "" {
+		return errors.New("client.http.address is required")
+	}
+	if strings.TrimSpace(c.Log.Level) == "" {
+		return errors.New("log.level is required")
+	}
+	return nil
+}

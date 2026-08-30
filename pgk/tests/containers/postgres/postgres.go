@@ -91,7 +91,7 @@ func New(t *testing.T) (*pgxpool.Pool, string, string) {
 
 	testConnStr := replaceDatabaseName(baseConnStr, dbName)
 
-	err = pgmigrator.Migrate(testConnStr, filepath.Join(projectRoot(t), migrationsDir))
+	err = pgmigrator.Migrate(testConnStr, filepath.Join(projectRoot(t), migrationsDir), nil)
 	require.NoError(t, err)
 
 	testPool, err := pgxpool.New(ctx, testConnStr)

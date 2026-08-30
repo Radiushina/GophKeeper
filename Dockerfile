@@ -15,7 +15,7 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 COPY --from=builder /gophkeeper-server /app/gophkeeper-server
-COPY config/server/content.yml /app/config/server/content.yml
+COPY config/content.yml /app/config/content.yml
 
 EXPOSE 8080
 
