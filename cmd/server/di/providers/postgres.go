@@ -8,10 +8,11 @@ import (
 	"github.com/Radiushina/GophKeeper/internal/migrations"
 	"github.com/Radiushina/GophKeeper/pgk/pgmigrator"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
-func NewPostgres(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, func(), error) {
-	if err := pgmigrator.MigrateFromEmbeddedFS(migrations.Postgres, "postgres", cfg.Database.DSN); err != nil {
+func NewPostgres(ctx context.Context, cfg *config.Config, log *zap.Logger) (*pgxpool.Pool, func(), error) {
+	if err := pgmigrator.MigrateFromEmbeddedFS(migrations.Postgres, "postgres", cfg.Database.DSN, log); err != nil {
 		return nil, nil, fmt.Errorf("migrate: %w", err)
 	}
 

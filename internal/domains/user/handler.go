@@ -5,11 +5,13 @@ import (
 	"errors"
 
 	"github.com/Radiushina/GophKeeper/gen/oas"
+	"go.uber.org/zap"
 )
 
 type (
 	Handler struct {
 		service ServiceProvider
+		log     *zap.Logger
 	}
 
 	ServiceProvider interface {
@@ -18,8 +20,11 @@ type (
 	}
 )
 
-func NewHandler(service ServiceProvider) *Handler {
-	return &Handler{service: service}
+func NewHandler(service ServiceProvider, log *zap.Logger) *Handler {
+	if log == nil {
+		log = zap.NewNop()
+	}
+	return &Handler{service: service, log: log}
 }
 
 func (h *Handler) APIUserRegisterPost(ctx context.Context, req *oas.APIUserRegisterPostReq) (oas.APIUserRegisterPostRes, error) {
@@ -35,6 +40,7 @@ func (h *Handler) APIUserRegisterPost(ctx context.Context, req *oas.APIUserRegis
 		if errors.Is(err, ErrInvalidCredentials) {
 			return &oas.APIUserRegisterPostBadRequest{Msg: "validate"}, nil
 		}
+		h.log.Error("register", zap.Error(err))
 		return &oas.APIUserRegisterPostInternalServerError{Msg: "internal server error"}, nil
 	}
 	return authHeaders(session), nil
@@ -50,6 +56,7 @@ func (h *Handler) APIUserLoginPost(ctx context.Context, req *oas.APIUserLoginPos
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserNotFound) {
 			return &oas.APIUserLoginPostUnauthorized{Msg: "invalid login/password pair"}, nil
 		}
+		h.log.Error("login", zap.Error(err))
 		return &oas.APIUserLoginPostInternalServerError{Msg: "internal server error"}, nil
 	}
 	return authHeaders(session), nil

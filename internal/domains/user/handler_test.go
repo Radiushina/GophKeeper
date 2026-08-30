@@ -20,7 +20,7 @@ func TestHandler_RegisterLogin(t *testing.T) {
 
 	tokens := user.NewJWT("handler-secret", time.Hour)
 	svc := user.NewService(newMemRepo(), tokens, user.NewHasher())
-	h := user.NewHandler(svc)
+	h := user.NewHandler(svc, nil)
 	srv, err := oas.NewServer(h)
 	require.NoError(t, err)
 

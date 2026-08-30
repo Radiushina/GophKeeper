@@ -22,20 +22,20 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	pool, cleanup, err := providers.NewPostgres(ctx, config)
+	logger, cleanup, err := providers.NewLogger(config)
 	if err != nil {
+		return nil, nil, err
+	}
+	pool, cleanup2, err := providers.NewPostgres(ctx, config, logger)
+	if err != nil {
+		cleanup()
 		return nil, nil, err
 	}
 	usersRepo := user.NewRepository(pool)
 	jwt := providers.NewJWT(config)
 	hasher := user.NewHasher()
 	service := user.NewService(usersRepo, jwt, hasher)
-	handler := user.NewHandler(service)
-	logger, cleanup2, err := providers.NewLogger(config)
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
+	handler := user.NewHandler(service, logger)
 	server, err := providers.NewHTTPServer(config, handler, jwt, logger)
 	if err != nil {
 		cleanup2()
@@ -46,6 +46,7 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 	app := &App{
 		cfg:    config,
 		server: servers,
+		Log:    logger,
 	}
 	return app, func() {
 		cleanup2()
