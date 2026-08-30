@@ -20,7 +20,7 @@ func (a *App) logError(msg string, err error, fields ...zap.Field) {
 	if a == nil || a.Log == nil || err == nil {
 		return
 	}
-	a.Log.Error(msg, append(fields, zap.Error(err))...)
+	a.Log.Warn(msg, append(fields, zap.Error(err))...)
 }
 
 func (a *App) logInfo(msg string, fields ...zap.Field) {
@@ -44,7 +44,7 @@ type zapWriter struct {
 func (w zapWriter) Write(p []byte) (int, error) {
 	msg := strings.TrimSpace(string(p))
 	if msg != "" {
-		w.log.Error(msg)
+		w.log.Warn(msg)
 	}
 	return len(p), nil
 }
