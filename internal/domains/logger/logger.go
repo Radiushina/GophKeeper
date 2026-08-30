@@ -2,6 +2,7 @@ package logger
 
 import (
 	"net/http"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -15,11 +16,20 @@ func New(level string) (*zap.Logger, error) {
 	}
 	cfg := zap.NewProductionConfig()
 	cfg.Level = lvl
+	cfg.DisableStacktrace = true
 	zl, err := cfg.Build()
 	if err != nil {
 		return nil, err
 	}
 	return zl, nil
+}
+
+func Exit(log *zap.Logger, msg string, err error) {
+	if log != nil {
+		log.Error(msg, zap.Error(err))
+		_ = log.Sync()
+	}
+	os.Exit(1)
 }
 
 type loggingResponseWriter struct {

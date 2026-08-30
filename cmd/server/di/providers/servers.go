@@ -18,21 +18,34 @@ func NewServers(httpServer *http.Server, log *zap.Logger) *Servers {
 	return &Servers{http: httpServer, log: log}
 }
 
-func (s *Servers) Start(ctx context.Context) {
+func (s *Servers) Start(ctx context.Context) error {
+	errCh := make(chan error, 1)
 	go func() {
 		s.log.Info("starting HTTP server", zap.String("addr", s.http.Addr))
-		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.log.Error("http listen", zap.Error(err))
+		err := s.http.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
 		}
+		errCh <- nil
 	}()
 
-	<-ctx.Done()
-
-	shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := s.http.Shutdown(shutCtx); err != nil {
-		s.log.Error("http shutdown", zap.Error(err))
-		return
+	select {
+	case err := <-errCh:
+		if err != nil {
+			s.log.Error("http listen", zap.Error(err))
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.http.Shutdown(shutCtx); err != nil {
+			s.log.Error("http shutdown", zap.Error(err))
+			return err
+		}
+		s.log.Info("HTTP server stopped")
+		<-errCh
+		return nil
 	}
-	s.log.Info("HTTP server stopped")
 }

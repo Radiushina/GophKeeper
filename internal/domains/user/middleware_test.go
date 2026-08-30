@@ -22,7 +22,7 @@ func TestNewAuthMiddleware(t *testing.T) {
 
 	handler := user.NewAuthMiddleware(jwtProvider)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/secret" {
-			got, err := user.UserIDFromContext(r.Context())
+			got, err := user.IDFromContext(r.Context())
 			require.NoError(t, err)
 			require.Equal(t, userID, got)
 		}

@@ -35,7 +35,7 @@ services:
     environment:
       GOPHKEEPER_SERVER_HTTP_ADDRESS: ":8080"
       GOPHKEEPER_DATABASE_DSN: postgres://developer:my_pass@postgres:5432/gophkeeper?sslmode=disable
-      GOPHKEEPER_AUTH_JWT_SECRET: change-me
+      GOPHKEEPER_AUTH_JWT_SECRET: ${GOPHKEEPER_AUTH_JWT_SECRET}
       GOPHKEEPER_LOG_LEVEL: info
     depends_on:
       postgres:

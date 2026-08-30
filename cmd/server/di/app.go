@@ -15,6 +15,5 @@ type App struct {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	a.server.Start(ctx)
-	return nil
+	return a.server.Start(ctx)
 }

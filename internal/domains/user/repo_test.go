@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
-	"github.com/Radiushina/GophKeeper/pgk/tests/containers/postgres"
+	"github.com/Radiushina/GophKeeper/pkg/tests/containers/postgres"
 	"github.com/stretchr/testify/require"
 )
 

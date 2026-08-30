@@ -175,7 +175,9 @@ func collectFields(t reflect.Type, prefix string) []fieldMeta {
 }
 
 func logInfo(msg string, fields ...zap.Field) {
-	zl, err := zap.NewProduction()
+	cfg := zap.NewProductionConfig()
+	cfg.DisableStacktrace = true
+	zl, err := cfg.Build()
 	if err != nil {
 		return
 	}

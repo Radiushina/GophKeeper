@@ -6,7 +6,7 @@ import (
 
 	"github.com/Radiushina/GophKeeper/config"
 	"github.com/Radiushina/GophKeeper/internal/migrations"
-	"github.com/Radiushina/GophKeeper/pgk/pgmigrator"
+	"github.com/Radiushina/GophKeeper/pkg/pgmigrator"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )

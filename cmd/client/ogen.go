@@ -43,15 +43,12 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		t.log.Error("HTTP request", append(fields, zap.Error(err))...)
 		return resp, err
 	}
-	fields = append(fields,
-		zap.Int("status", resp.StatusCode),
-		zap.Int64("response_size", resp.ContentLength),
+	t.log.Info("HTTP request",
+		append(fields,
+			zap.Int("status", resp.StatusCode),
+			zap.Int64("response_size", resp.ContentLength),
+		)...,
 	)
-	if resp.StatusCode >= http.StatusBadRequest {
-		t.log.Error("HTTP request", fields...)
-		return resp, nil
-	}
-	t.log.Info("HTTP request", fields...)
 	return resp, nil
 }
 

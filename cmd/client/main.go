@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	applogger "github.com/Radiushina/GophKeeper/internal/domains/logger"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -30,5 +29,5 @@ func fatal(msg string, err error) {
 	if logErr != nil {
 		os.Exit(1)
 	}
-	log.Fatal(msg, zap.Error(err))
+	applogger.Exit(log, msg, err)
 }

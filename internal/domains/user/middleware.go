@@ -11,11 +11,11 @@ import (
 
 type userIDKey struct{}
 
-func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
+func withUserID(ctx context.Context, userID uuid.UUID) context.Context {
 	return context.WithValue(ctx, userIDKey{}, userID)
 }
 
-func UserIDFromContext(ctx context.Context) (uuid.UUID, error) {
+func IDFromContext(ctx context.Context) (uuid.UUID, error) {
 	userID, ok := ctx.Value(userIDKey{}).(uuid.UUID)
 	if !ok || userID == uuid.Nil {
 		return uuid.Nil, ErrUnauthorized
@@ -49,7 +49,7 @@ func NewAuthMiddleware(jwt *JWT) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), userID)))
+			next.ServeHTTP(w, r.WithContext(withUserID(r.Context(), userID)))
 		})
 	}
 }

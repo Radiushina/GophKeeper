@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Radiushina/GophKeeper/pgk/pgmigrator"
+	"github.com/Radiushina/GophKeeper/pkg/pgmigrator"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/moby/moby/api/types/container"
 	"github.com/samber/lo"

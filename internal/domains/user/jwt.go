@@ -44,22 +44,22 @@ func (j *JWT) Parse(tokenString string) (uuid.UUID, error) {
 		return j.secret, nil
 	})
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("parse jwt: %w", err)
+		return uuid.Nil, fmt.Errorf("%w: parse jwt: %w", ErrUnauthorized, err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return uuid.Nil, fmt.Errorf("invalid token")
+		return uuid.Nil, fmt.Errorf("%w: invalid token", ErrUnauthorized)
 	}
 
 	sub, ok := claims["sub"].(string)
 	if !ok {
-		return uuid.Nil, fmt.Errorf("invalid subject")
+		return uuid.Nil, fmt.Errorf("%w: invalid subject", ErrUnauthorized)
 	}
 
 	userID, err := uuid.Parse(sub)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("parse subject: %w", err)
+		return uuid.Nil, fmt.Errorf("%w: parse subject: %w", ErrUnauthorized, err)
 	}
 
 	return userID, nil
