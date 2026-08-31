@@ -12,6 +12,8 @@ import (
 type App struct {
 	mu     sync.Mutex
 	token  string
+	user   string
+	Server string
 	Client *oas.Client
 	Log    *zap.Logger
 }
@@ -59,6 +61,18 @@ func (a *App) Token() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.token
+}
+
+func (a *App) SetUser(login string) {
+	a.mu.Lock()
+	a.user = login
+	a.mu.Unlock()
+}
+
+func (a *App) User() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.user
 }
 
 func rememberToken(a *App, token string) {

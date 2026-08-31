@@ -23,6 +23,7 @@ type Flags struct {
 	configPath string
 	logLevel   string
 	version    bool
+	tui        bool
 	args       []string
 }
 
@@ -62,6 +63,7 @@ func (r *Flags) parse() (exitCode int, err error) {
 	fs.StringVar(&r.server, "server", defaultServer, "remote API URL")
 	fs.StringVar(&r.logLevel, "log-level", defaultLogLevel, "log level")
 	fs.BoolVar(&r.version, "version", false, "print build version and date")
+	fs.BoolVar(&r.tui, "tui", false, "open terminal UI (REPL stays the default)")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {

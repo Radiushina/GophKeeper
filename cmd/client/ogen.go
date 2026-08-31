@@ -12,7 +12,7 @@ import (
 )
 
 func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
-	app := &client.App{Log: log}
+	app := &client.App{Log: log, Server: cfg.Client.HTTP.Address}
 	oasClient, err := oas.NewClient(cfg.Client.HTTP.Address, oas.WithClient(&http.Client{
 		Transport: &authTransport{
 			app:  app,

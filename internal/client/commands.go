@@ -33,6 +33,7 @@ func handleAuthRes(app *App, res any) error {
 	switch v := res.(type) {
 	case *oas.AuthUserResHeaders:
 		rememberToken(app, v.Response.Token)
+		app.SetUser(v.Response.User.Login)
 		app.logAuth(v)
 		return nil
 	case *oas.APIUserRegisterPostBadRequest:

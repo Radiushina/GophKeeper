@@ -16,5 +16,8 @@ func newApp(cli *client.App, flags *Flags) *app {
 }
 
 func (a *app) run(ctx context.Context) error {
+	if a.flags.tui {
+		return client.RunTUI(ctx, a.cli)
+	}
 	return client.Run(ctx, a.cli, a.flags.args)
 }

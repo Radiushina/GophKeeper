@@ -25,7 +25,7 @@ func Run(ctx context.Context, app *App, args []string) error {
 }
 
 func repl(ctx context.Context, app *App, in io.Reader, out io.Writer) error {
-	app.logInfo("GophKeeper. Commands: register, login, version, exit")
+	app.logInfo("GophKeeper. Commands: register, login, tui, version, exit")
 	sc := bufio.NewScanner(in)
 	for {
 		fmt.Fprint(out, "> ")
@@ -63,6 +63,8 @@ func execCommand(ctx context.Context, app *App, args []string) error {
 			return err
 		}
 		return Login(ctx, app, login, password)
+	case "tui":
+		return RunTUI(ctx, app)
 	case "version":
 		buildinfo.Print()
 		return nil
