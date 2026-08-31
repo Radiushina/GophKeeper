@@ -81,8 +81,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = ""
 		m.status = "signed in as " + msg.login
 		m.screen = tuiHome
-		m.blurInputs()
-		return m, nil
+		return m.blurInputs(), nil
 	case tea.KeyMsg:
 		if m.busy {
 			if msg.Type == tea.KeyCtrlC {
@@ -122,15 +121,14 @@ func (m tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		m.screen = tuiHome
 		m.err = ""
-		m.blurInputs()
-		return m, nil
+		return m.blurInputs(), nil
 	case tea.KeyTab, tea.KeyShiftTab, tea.KeyUp, tea.KeyDown:
 		if msg.Type == tea.KeyUp || msg.Type == tea.KeyShiftTab {
 			m.focus = (m.focus + len(m.inputs) - 1) % len(m.inputs)
 		} else {
 			m.focus = (m.focus + 1) % len(m.inputs)
 		}
-		return m, m.focusInputs()
+		return m.focusInputs()
 	case tea.KeyEnter:
 		return m.submit()
 	}
@@ -144,7 +142,7 @@ func (m tuiModel) openForm(screen tuiScreen) (tea.Model, tea.Cmd) {
 	m.focus = 0
 	m.inputs[0].SetValue("")
 	m.inputs[1].SetValue("")
-	return m, m.focusInputs()
+	return m.focusInputs()
 }
 
 func (m tuiModel) submit() (tea.Model, tea.Cmd) {
@@ -170,13 +168,14 @@ func (m tuiModel) submit() (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m *tuiModel) blurInputs() {
+func (m tuiModel) blurInputs() tuiModel {
 	for i := range m.inputs {
 		m.inputs[i].Blur()
 	}
+	return m
 }
 
-func (m *tuiModel) focusInputs() tea.Cmd {
+func (m tuiModel) focusInputs() (tea.Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
 		if i == m.focus {
@@ -185,7 +184,7 @@ func (m *tuiModel) focusInputs() tea.Cmd {
 			m.inputs[i].Blur()
 		}
 	}
-	return tea.Batch(cmds...)
+	return m, tea.Batch(cmds...)
 }
 
 func (m tuiModel) updateInputs(msg tea.Msg) (tea.Model, tea.Cmd) {
