@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Radiushina/GophKeeper/internal/domains/buildinfo"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -110,6 +111,12 @@ func (m tuiModel) updateHome(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openForm(tuiLogin)
 	case "r":
 		return m.openForm(tuiRegister)
+	case "v":
+		var b strings.Builder
+		buildinfo.Fprint(&b)
+		m.status = strings.TrimSpace(b.String())
+		m.err = ""
+		return m, nil
 	}
 	return m, nil
 }
@@ -253,7 +260,7 @@ func (m tuiModel) formBody() string {
 func (m tuiModel) help() string {
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	if m.screen == tuiHome {
-		return style.Render("l login   r register   q quit")
+		return style.Render("l login   r register   v version   q quit")
 	}
 	return style.Render("enter submit   tab next   esc back")
 }
