@@ -4,13 +4,22 @@ info:
   title: GophKeeper system API
   version: 0.1.0
   description: |
-    Данный документ содержит документацию взаимодействия с клиент-серверной системой,
-    позволяющей пользователю хранить логины, пароли, бинарные данные и 
-    прочую приватную информацию.
+    Документация клиент-серверного API GophKeeper: учётные записи и приватные
+    данные владельца (текст, карты, файлы).
+
+    Заметки, карты и файлы клиент шифрует до отправки. В API уходит только
+    шифротекст (поле `ciphertext`) и служебные поля синка (`id`, `version`, даты).
+    Сервер это хранит как есть и ключ шифрования не считает.
 
 tags:
   - name: Auth
     description: Методы авторизации
+  - name: Notes
+    description: Произвольные текстовые данные.
+  - name: Cards
+    description: Данные банковских карт.
+  - name: Files
+    description: Бинарные данные.
 
 paths:
   /api/user/register:
@@ -23,15 +32,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [ login, password ]
-              properties:
-                login:
-                  type: string
-                  description: Логин
-                password:
-                  type: string
-                  description: Пароль
+              $ref: './common/user.yml#/RegisterReq'
       responses:
         200:
           description: 'Успешная регистрация'
@@ -41,7 +42,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthUserRes'
+                $ref: '/common/user.yml#/AuthUserRes'
         400:
           $ref: '#/components/responses/400'
         409:
@@ -77,7 +78,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthUserRes'
+                $ref: './common/user.yml#/AuthUserRes'
         400:
           $ref: '#/components/responses/400'
         401:
@@ -85,17 +86,164 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /api/notes:
+    post:
+      operationId: noteCreate
+      summary: Создать текстовую запись
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/vault.yml#/CreateNote'
+      responses:
+        200:
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                $ref: './common/vault.yml#/Note'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      operationId: listNotes
+      summary: Список текстовых записей владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/notes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/NoteID'
+    get:
+      operationId: noteGet
+      summary: Текстовая запись владельца
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/vault.yml#/Note'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      operationId: noteUpdate
+      summary: Обновить текстовую запись
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/vault.yml#/UpdateNote'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/vault.yml#/Note'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      operationId: noteDelete
+      summary: Удалить текстовую запись (tombstone)
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/vault.yml#/Note'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
 components:
+  parameters:
+    NoteID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SyncSince:
+      name: since
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Курсор синка. RFC3339. Пусто — все живые объекты (без tombstone).
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWT-токен, полученный при регистрации (`POST /api/user/register`) или входе (`POST /api/user/login`).
-        В ответе этих методов токен возвращается в заголовке `Authorization` (`Bearer <token>`)
-        и дублируется в теле JSON (поле `token`).
-        В последующих запросах передаётся в заголовке `Authorization`.
+        JWT-токен, полученный при регистрации или входе.
   headers:
     Authorization:
       description: |
@@ -146,6 +294,23 @@ components:
           schema:
             $ref: '#/components/schemas/UnsuccessfulResponse'
           example: { "msg": "login is already taken" }
+    '409_secret':
+      description: |
+        Конфликт: такой `id` уже есть у владельца, либо несовпадение `version`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "conflict" }
+    '413':
+      description: |
+        Файл больше 512 MiB. Клиент обязан показать тот же смысл пользователю,
+        например `file is too large: 1.2 GiB, maximum is 512 MiB`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "file is too large: maximum is 512 MiB" }
     '500':
       description: 'Внутренняя ошибка сервера'
       content:
@@ -161,15 +326,14 @@ components:
             $ref: '#/components/schemas/UnsuccessfulResponse'
           example: { "msg": "invalid login/password pair" }
   schemas:
-    AuthUserRes:
+    NoteListRes:
       type: object
-      required: [ user, token ]
+      required: [items]
       properties:
-        user:
-          $ref: './common/user.yml#/User'
-        token:
-          type: string
-          description: JWT-токен (дублирует значение из заголовка Authorization)
+        items:
+          type: array
+          items:
+            $ref: './common/vault.yml#/Note'
     UnsuccessfulResponse:
       type: object
       required: [ msg ]

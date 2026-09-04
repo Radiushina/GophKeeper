@@ -9,3 +9,84 @@ User:
     login:
       type: string
       description: Логин
+
+KdfParams:
+  type: object
+  required: [algorithm, memory, iterations, parallelism, version]
+  description: |
+    Публичные параметры Argon2id. Сервер задаёт политику и хранит снимок
+    на пользователя; клиент не выбирает memory/iterations сам.
+    Пароль → KEK, KEK снимает обёртку с vault key. Сервер KEK не считает.
+  properties:
+    algorithm:
+      type: string
+      enum: [argon2id]
+    memory:
+      type: integer
+      minimum: 19456
+      description: Память Argon2 в KiB. Минимум OWASP (19 MiB).
+      example: 19456
+    iterations:
+      type: integer
+      minimum: 2
+      example: 2
+    parallelism:
+      type: integer
+      minimum: 1
+      example: 1
+    version:
+      type: integer
+      enum: [19]
+      description: Версия Argon2 (0x13).
+
+AuthUserRes:
+  type: object
+  required: [ user, token, kdf_salt, kdf_params, protected_key, key_hash ]
+  properties:
+    user:
+      $ref: '#/User'
+    token:
+      type: string
+      description: JWT-токен (дублирует значение из заголовка Authorization)
+    kdf_salt:
+      type: string
+      format: byte
+      description: Соль Argon2id из регистрации. Сервер не считает KEK.
+    kdf_params:
+      $ref: '#/KdfParams'
+    protected_key:
+      type: string
+      format: byte
+      description: Обёрнутый vault key. Сервер отдаёт как есть.
+    key_hash:
+      type: string
+      format: byte
+      description: SHA-256(VK) для проверки unwrap на клиенте.
+
+RegisterReq:
+  type: object
+  required: [login, password, kdf_salt, protected_key, key_hash]
+  properties:
+    login:
+      type: string
+    password:
+      type: string
+      description: Пароль учётки. Сервер хранит только login-hash, не KEK.
+    kdf_salt:
+      type: string
+      format: byte
+      description: Соль Argon2id, 16 байт. Генерирует клиент.
+    protected_key:
+      type: string
+      format: byte
+      description: |
+        Обёрнутый vault key(VK): AES-256-GCM(KEK, VK). VK случайный, его придумывает клиент. 
+        Из пароля + kdf_salt(+параметр Argon2) получаем ключ-обёртку (KEK).
+        KEK заворачивает VK → получается protected_key.
+        На сервер уходит только обёртка. Сам VK и KEK на сервер не едут.
+        При смене пароля — перезаворачиваем тот же VK в новую обёртку. Все заметки/файлы перешифровывать не надо.
+    key_hash:
+      type: string
+      format: byte
+      description: |
+        Отпечаток VK (SHA-256). Клиент сверяет после unwrap.
