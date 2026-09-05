@@ -22,8 +22,10 @@ tags:
     description: Бинарные данные.
 
 paths:
-  /api/user/register:
+  /api/v1/user/register:
     post:
+      x-ogen-operation-group: user
+      operationId: auth-register
       summary: Регистрация пользователя
       tags:
         - Auth
@@ -42,7 +44,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '/common/user.yml#/AuthUserRes'
+                $ref: './common/user.yml#/AuthUserRes'
         400:
           $ref: '#/components/responses/400'
         409:
@@ -50,8 +52,10 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
-  /api/user/login:
+  /api/v1/user/login:
     post:
+      x-ogen-operation-group: user
+      operationId: auth-login
       summary: Аутентификация пользователя
       tags:
         - Auth
@@ -86,9 +90,10 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
-  /api/notes:
+  /api/v1/notes:
     post:
-      operationId: noteCreate
+      x-ogen-operation-group: notes
+      operationId: note-create
       summary: Создать текстовую запись
       tags:
         - Notes
@@ -99,14 +104,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: './common/vault.yml#/CreateNote'
+              $ref: './common/note.yml#/CreateNote'
       responses:
         200:
           description: Запись создана
           content:
             application/json:
               schema:
-                $ref: './common/vault.yml#/Note'
+                $ref: './common/note.yml#/Note'
         400:
           $ref: '#/components/responses/400'
         401:
@@ -117,7 +122,8 @@ paths:
           $ref: '#/components/responses/500'
 
     get:
-      operationId: listNotes
+      x-ogen-operation-group: notes
+      operationId: list-notes
       summary: Список текстовых записей владельца (UI и офлайн-синк)
       description: |
         Только объекты текущего пользователя.
@@ -144,11 +150,12 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
-  /api/notes/{id}:
+  /api/v1/notes/{id}:
     parameters:
       - $ref: '#/components/parameters/NoteID'
     get:
-      operationId: noteGet
+      x-ogen-operation-group: notes
+      operationId: note-get
       summary: Текстовая запись владельца
       tags:
         - Notes
@@ -160,7 +167,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: './common/vault.yml#/Note'
+                $ref: './common/note.yml#/Note'
         401:
           $ref: '#/components/responses/401'
         404:
@@ -169,7 +176,8 @@ paths:
           $ref: '#/components/responses/500'
 
     put:
-      operationId: noteUpdate
+      x-ogen-operation-group: notes
+      operationId: note-update
       summary: Обновить текстовую запись
       tags:
         - Notes
@@ -180,14 +188,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: './common/vault.yml#/UpdateNote'
+              $ref: './common/note.yml#/UpdateNote'
       responses:
         200:
           description: Запись обновлена, `version` увеличена
           content:
             application/json:
               schema:
-                $ref: './common/vault.yml#/Note'
+                $ref: './common/note.yml#/Note'
         400:
           $ref: '#/components/responses/400'
         401:
@@ -200,6 +208,7 @@ paths:
           $ref: '#/components/responses/500'
 
     delete:
+      x-ogen-operation-group: notes
       operationId: noteDelete
       summary: Удалить текстовую запись (tombstone)
       tags:
@@ -212,7 +221,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: './common/vault.yml#/Note'
+                $ref: './common/note.yml#/Note'
         401:
           $ref: '#/components/responses/401'
         404:
@@ -333,7 +342,7 @@ components:
         items:
           type: array
           items:
-            $ref: './common/vault.yml#/Note'
+            $ref: './common/note.yml#/Note'
     UnsuccessfulResponse:
       type: object
       required: [ msg ]

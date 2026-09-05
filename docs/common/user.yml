@@ -69,9 +69,14 @@ RegisterReq:
   properties:
     login:
       type: string
+      description: Логин
+      x-ogen-validate:
+        notBlank: true
     password:
       type: string
       description: Пароль учётки. Сервер хранит только login-hash, не KEK.
+      x-ogen-validate:
+        notBlank: true
     kdf_salt:
       type: string
       format: byte
