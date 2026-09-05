@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 
+	"github.com/Radiushina/GophKeeper/internal/vault"
 	"github.com/google/uuid"
 )
 
@@ -14,14 +15,25 @@ var (
 )
 
 type User struct {
-	ID       uuid.UUID `db:"id" json:"id"`
-	Login    string    `db:"login" json:"login"`
-	Password string    `db:"password" json:"-"`
+	ID             uuid.UUID `db:"id" json:"id"`
+	Login          string    `db:"login" json:"login"`
+	Password       string    `db:"password" json:"-"`
+	KdfSalt        []byte    `db:"kdf_salt" json:"-"`
+	KdfMemory      int       `db:"kdf_memory" json:"-"`
+	KdfIterations  int       `db:"kdf_iterations" json:"-"`
+	KdfParallelism int       `db:"kdf_parallelism" json:"-"`
+	KdfVersion     int       `db:"kdf_version" json:"-"`
+	ProtectedKey   []byte    `db:"protected_key" json:"-"`
+	KeyHash        []byte    `db:"key_hash" json:"-"`
 }
 
-type AuthRequest struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
+// RegisterInput is client register payload (vault blobs opaque to the server).
+type RegisterInput struct {
+	Login        string
+	Password     string
+	KdfSalt      []byte
+	ProtectedKey []byte
+	KeyHash      []byte
 }
 
 type UserResponse struct {
@@ -30,8 +42,12 @@ type UserResponse struct {
 }
 
 type AuthUserResponse struct {
-	User  UserResponse `json:"user"`
-	Token string       `json:"token"`
+	User         UserResponse
+	Token        string
+	KdfSalt      []byte
+	KdfParams    vault.Params
+	ProtectedKey []byte
+	KeyHash      []byte
 }
 
 func NewAuthSession(u User, token string) AuthUserResponse {
@@ -40,6 +56,15 @@ func NewAuthSession(u User, token string) AuthUserResponse {
 			ID:    u.ID,
 			Login: u.Login,
 		},
-		Token: token,
+		Token:   token,
+		KdfSalt: append([]byte(nil), u.KdfSalt...),
+		KdfParams: vault.Params{
+			Memory:      uint32(u.KdfMemory),
+			Iterations:  uint32(u.KdfIterations),
+			Parallelism: uint8(u.KdfParallelism),
+			Version:     uint8(u.KdfVersion),
+		},
+		ProtectedKey: append([]byte(nil), u.ProtectedKey...),
+		KeyHash:      append([]byte(nil), u.KeyHash...),
 	}
 }

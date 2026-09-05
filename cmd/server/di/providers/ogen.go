@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Radiushina/GophKeeper/config"
@@ -12,18 +13,29 @@ import (
 	applogger "github.com/Radiushina/GophKeeper/internal/domains/logger"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 	"github.com/ogen-go/ogen/ogenerrors"
+	"github.com/ogen-go/ogen/validate"
 	"go.uber.org/zap"
 )
 
-func NewHTTPServer(cfg *config.Config, h *user.Handler, jwt *user.JWT, log *zap.Logger) (*http.Server, error) {
-	handler, err := oas.NewServer(h, oas.WithErrorHandler(OASErrorHandler))
+func init() {
+	_ = validate.RegisterValidator("notBlank", func(value, _ any) error {
+		s, ok := value.(string)
+		if !ok || strings.TrimSpace(s) == "" {
+			return fmt.Errorf("must not be blank")
+		}
+		return nil
+	})
+}
+
+func NewHTTPServer(cfg *config.Config, h oas.Handler, jwt *user.JWT, log *zap.Logger) (*http.Server, error) {
+	handler, err := oas.NewServer(h, jwt, oas.WithErrorHandler(OASErrorHandler))
 	if err != nil {
 		return nil, fmt.Errorf("oas server: %w", err)
 	}
 
 	return &http.Server{
 		Addr:              cfg.Server.HTTP.Address,
-		Handler:           applogger.LoggingMiddleware(log, user.NewAuthMiddleware(jwt)(handler)),
+		Handler:           applogger.LoggingMiddleware(log, handler),
 		ReadHeaderTimeout: 5 * time.Second,
 	}, nil
 }

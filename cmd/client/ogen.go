@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,7 +14,8 @@ import (
 
 func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
 	app := &client.App{Log: log, Server: cfg.Client.HTTP.Address}
-	oasClient, err := oas.NewClient(cfg.Client.HTTP.Address, oas.WithClient(&http.Client{
+	sec := tokenSource{app: app}
+	oasClient, err := oas.NewClient(cfg.Client.HTTP.Address, sec, oas.WithClient(&http.Client{
 		Transport: &authTransport{
 			app:  app,
 			base: &loggingTransport{log: log, base: http.DefaultTransport},
@@ -24,6 +26,14 @@ func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
 	}
 	app.Client = oasClient
 	return app, nil
+}
+
+type tokenSource struct {
+	app *client.App
+}
+
+func (s tokenSource) BearerAuth(_ context.Context, _ oas.OperationName) (oas.BearerAuth, error) {
+	return oas.BearerAuth{Token: s.app.Token()}, nil
 }
 
 type loggingTransport struct {
@@ -49,7 +59,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 			zap.Int64("response_size", resp.ContentLength),
 		)...,
 	)
-	return resp, nil
+	return resp, err
 }
 
 type authTransport struct {

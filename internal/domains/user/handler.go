@@ -5,17 +5,20 @@ import (
 	"errors"
 
 	"github.com/Radiushina/GophKeeper/gen/oas"
+	"github.com/Radiushina/GophKeeper/internal/vault"
 	"go.uber.org/zap"
 )
 
 type (
 	Handler struct {
+		oas.UserHandler
+
 		service ServiceProvider
 		log     *zap.Logger
 	}
 
 	ServiceProvider interface {
-		CreateUser(ctx context.Context, login, password string) (AuthUserResponse, error)
+		CreateUser(ctx context.Context, in RegisterInput) (AuthUserResponse, error)
 		GetByLogin(ctx context.Context, login, password string) (AuthUserResponse, error)
 	}
 )
@@ -27,37 +30,39 @@ func NewHandler(service ServiceProvider, log *zap.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
-func (h *Handler) APIUserRegisterPost(ctx context.Context, req *oas.APIUserRegisterPostReq) (oas.APIUserRegisterPostRes, error) {
-	if req.GetLogin() == "" || req.GetPassword() == "" {
-		return &oas.APIUserRegisterPostBadRequest{Msg: "validate"}, nil
-	}
-
-	session, err := h.service.CreateUser(ctx, req.GetLogin(), req.GetPassword())
+func (h *Handler) AuthRegister(ctx context.Context, req *oas.RegisterReq) (oas.AuthRegisterRes, error) {
+	session, err := h.service.CreateUser(ctx, RegisterInput{
+		Login:        req.GetLogin(),
+		Password:     req.GetPassword(),
+		KdfSalt:      req.GetKdfSalt(),
+		ProtectedKey: req.GetProtectedKey(),
+		KeyHash:      req.GetKeyHash(),
+	})
 	if err != nil {
 		if errors.Is(err, ErrUserAlreadyExists) {
-			return &oas.APIUserRegisterPostConflict{Msg: "login is already taken"}, nil
+			return &oas.AuthRegisterConflict{Msg: "login is already taken"}, nil
 		}
 		if errors.Is(err, ErrInvalidCredentials) {
-			return &oas.APIUserRegisterPostBadRequest{Msg: "validate"}, nil
+			return &oas.AuthRegisterBadRequest{Msg: "validate"}, nil
 		}
 		h.log.Error("register", zap.Error(err))
-		return &oas.APIUserRegisterPostInternalServerError{Msg: "internal server error"}, nil
+		return &oas.AuthRegisterInternalServerError{Msg: "internal server error"}, nil
 	}
 	return authHeaders(session), nil
 }
 
-func (h *Handler) APIUserLoginPost(ctx context.Context, req *oas.APIUserLoginPostReq) (oas.APIUserLoginPostRes, error) {
+func (h *Handler) AuthLogin(ctx context.Context, req *oas.AuthLoginReq) (oas.AuthLoginRes, error) {
 	if req.GetLogin() == "" || req.GetPassword() == "" {
-		return &oas.APIUserLoginPostBadRequest{Msg: "validate"}, nil
+		return &oas.AuthLoginBadRequest{Msg: "validate"}, nil
 	}
 
 	session, err := h.service.GetByLogin(ctx, req.GetLogin(), req.GetPassword())
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserNotFound) {
-			return &oas.APIUserLoginPostUnauthorized{Msg: "invalid login/password pair"}, nil
+			return &oas.AuthLoginUnauthorized{Msg: "invalid login/password pair"}, nil
 		}
 		h.log.Error("login", zap.Error(err))
-		return &oas.APIUserLoginPostInternalServerError{Msg: "internal server error"}, nil
+		return &oas.AuthLoginInternalServerError{Msg: "internal server error"}, nil
 	}
 	return authHeaders(session), nil
 }
@@ -70,7 +75,21 @@ func authHeaders(session AuthUserResponse) *oas.AuthUserResHeaders {
 				ID:    session.User.ID,
 				Login: session.User.Login,
 			},
-			Token: session.Token,
+			Token:        session.Token,
+			KdfSalt:      session.KdfSalt,
+			KdfParams:    toOASKdfParams(session.KdfParams),
+			ProtectedKey: session.ProtectedKey,
+			KeyHash:      session.KeyHash,
 		},
+	}
+}
+
+func toOASKdfParams(p vault.Params) oas.KdfParams {
+	return oas.KdfParams{
+		Algorithm:   oas.KdfParamsAlgorithmArgon2id,
+		Memory:      int(p.Memory),
+		Iterations:  int(p.Iterations),
+		Parallelism: int(p.Parallelism),
+		Version:     oas.KdfParamsVersion(p.Version),
 	}
 }

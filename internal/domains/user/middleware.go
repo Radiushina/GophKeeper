@@ -11,10 +11,12 @@ import (
 
 type userIDKey struct{}
 
-func withUserID(ctx context.Context, userID uuid.UUID) context.Context {
+// WithUserID puts the authenticated owner id on ctx.
+func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
 	return context.WithValue(ctx, userIDKey{}, userID)
 }
 
+// IDFromContext returns the owner id placed by JWT auth.
 func IDFromContext(ctx context.Context) (uuid.UUID, error) {
 	userID, ok := ctx.Value(userIDKey{}).(uuid.UUID)
 	if !ok || userID == uuid.Nil {
@@ -49,7 +51,7 @@ func NewAuthMiddleware(jwt *JWT) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(withUserID(r.Context(), userID)))
+			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), userID)))
 		})
 	}
 }
@@ -59,7 +61,7 @@ func isPublicAuthPath(r *http.Request) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case "/api/user/register", "/api/user/login":
+	case "/api/v1/user/register", "/api/v1/user/login":
 		return true
 	default:
 		return false

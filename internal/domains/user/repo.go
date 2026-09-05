@@ -29,14 +29,32 @@ func NewRepository(db *pgxpool.Pool) *UsersRepo {
 	}
 }
 
-func (r *UsersRepo) CreateUser(ctx context.Context, login, hashedPassword string) (User, error) {
+func (r *UsersRepo) CreateUser(ctx context.Context, u User) (User, error) {
 	query, args, err := r.builder.Insert(usersTable).
 		Prepared(true).
 		Rows(goqu.Record{
-			"login":    login,
-			"password": hashedPassword,
+			"login":           u.Login,
+			"password":        u.Password,
+			"kdf_salt":        u.KdfSalt,
+			"kdf_memory":      u.KdfMemory,
+			"kdf_iterations":  u.KdfIterations,
+			"kdf_parallelism": u.KdfParallelism,
+			"kdf_version":     u.KdfVersion,
+			"protected_key":   u.ProtectedKey,
+			"key_hash":        u.KeyHash,
 		}).
-		Returning(goqu.C("id"), goqu.C("login"), goqu.C("password")).
+		Returning(
+			goqu.C("id"),
+			goqu.C("login"),
+			goqu.C("password"),
+			goqu.C("kdf_salt"),
+			goqu.C("kdf_memory"),
+			goqu.C("kdf_iterations"),
+			goqu.C("kdf_parallelism"),
+			goqu.C("kdf_version"),
+			goqu.C("protected_key"),
+			goqu.C("key_hash"),
+		).
 		ToSQL()
 	if err != nil {
 		return User{}, fmt.Errorf("failed to build insert user query: %w", err)
@@ -47,24 +65,27 @@ func (r *UsersRepo) CreateUser(ctx context.Context, login, hashedPassword string
 		return User{}, wrapUserInsertErr(err)
 	}
 
-	u, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[User])
+	created, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[User])
 	if err != nil {
 		return User{}, wrapUserInsertErr(err)
 	}
-	return u, nil
-}
-
-func wrapUserInsertErr(err error) error {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-		return fmt.Errorf("%w: %w", ErrUserAlreadyExists, err)
-	}
-	return fmt.Errorf("failed to create user: %w", err)
+	return created, nil
 }
 
 func (r *UsersRepo) GetByLogin(ctx context.Context, login string) (User, error) {
 	query, args, err := r.builder.From(usersTable).
-		Select(goqu.C("id"), goqu.C("login"), goqu.C("password")).
+		Select(
+			goqu.C("id"),
+			goqu.C("login"),
+			goqu.C("password"),
+			goqu.C("kdf_salt"),
+			goqu.C("kdf_memory"),
+			goqu.C("kdf_iterations"),
+			goqu.C("kdf_parallelism"),
+			goqu.C("kdf_version"),
+			goqu.C("protected_key"),
+			goqu.C("key_hash"),
+		).
 		Prepared(true).
 		Where(goqu.Ex{"login": login}).
 		ToSQL()
@@ -86,4 +107,12 @@ func (r *UsersRepo) GetByLogin(ctx context.Context, login string) (User, error) 
 	}
 
 	return u, nil
+}
+
+func wrapUserInsertErr(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+		return fmt.Errorf("%w: %w", ErrUserAlreadyExists, err)
+	}
+	return fmt.Errorf("failed to create user: %w", err)
 }

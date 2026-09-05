@@ -1,11 +1,14 @@
 package user
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/Radiushina/GophKeeper/gen/oas"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/ogen-go/ogen/ogenerrors"
 )
 
 type JWT struct {
@@ -63,4 +66,16 @@ func (j *JWT) Parse(tokenString string) (uuid.UUID, error) {
 	}
 
 	return userID, nil
+}
+
+// HandleBearerAuth implements oas.SecurityHandler for note endpoints.
+func (j *JWT) HandleBearerAuth(ctx context.Context, _ oas.OperationName, t oas.BearerAuth) (context.Context, error) {
+	if t.Token == "" {
+		return ctx, &ogenerrors.SecurityError{Err: ErrUnauthorized}
+	}
+	userID, err := j.Parse(t.Token)
+	if err != nil {
+		return ctx, &ogenerrors.SecurityError{Err: err}
+	}
+	return WithUserID(ctx, userID), nil
 }
