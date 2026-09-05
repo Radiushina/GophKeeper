@@ -6,83 +6,74 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestLoggingMiddleware_StatusDefaultsTo200WhenWriteHeaderNotCalled(t *testing.T) {
-	core, logs := observer.New(zap.InfoLevel)
-	log := zap.New(core)
+func TestLoggingMiddleware(t *testing.T) {
+	t.Parallel()
 
-	body := "ok"
-	h := LoggingMiddleware(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, body) // no explicit WriteHeader
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "http://example.test/some/path", nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-
-	entries := logs.All()
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 log entry, got %d", len(entries))
+	tests := []struct {
+		name       string
+		method     string
+		url        string
+		handle     func(http.ResponseWriter, *http.Request)
+		wantStatus int
+		wantSize   int
+		wantURI    string
+	}{
+		{
+			name:   "implicit 200",
+			method: http.MethodGet,
+			url:    "http://example.test/some/path",
+			handle: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.WriteString(w, "ok")
+			},
+			wantStatus: http.StatusOK,
+			wantSize:   2,
+			wantURI:    "/some/path",
+		},
+		{
+			name:   "explicit write header",
+			method: http.MethodPost,
+			url:    "http://example.test/value",
+			handle: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			},
+			wantStatus: http.StatusNoContent,
+			wantURI:    "/value",
+		},
 	}
 
-	e := entries[0]
-	if e.Message != "HTTP request" {
-		t.Fatalf("unexpected log message: %q", e.Message)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			core, logs := observer.New(zap.InfoLevel)
+			h := LoggingMiddleware(zap.New(core), http.HandlerFunc(tc.handle))
+			req := httptest.NewRequest(tc.method, tc.url, nil)
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, req)
 
-	fields := make(map[string]any, len(e.Context))
-	for _, f := range e.Context {
-		switch f.Key {
-		case "status", "response_size":
-			fields[f.Key] = int(f.Integer)
-		case "method", "uri":
-			fields[f.Key] = f.String
-		default:
-			fields[f.Key] = f.Interface
-		}
-	}
+			entries := logs.All()
+			require.Len(t, entries, 1)
+			require.Equal(t, "HTTP request", entries[0].Message)
 
-	if got, ok := fields["status"].(int); !ok || got != http.StatusOK {
-		t.Fatalf("expected status=%d, got %#v", http.StatusOK, fields["status"])
-	}
-	if got, ok := fields["response_size"].(int); !ok || got != len(body) {
-		t.Fatalf("expected response_size=%d, got %#v", len(body), fields["response_size"])
-	}
-	if got, ok := fields["method"].(string); !ok || got != http.MethodGet {
-		t.Fatalf("expected method=%q, got %#v", http.MethodGet, fields["method"])
-	}
-	if got, ok := fields["uri"].(string); !ok || got != "/some/path" {
-		t.Fatalf("expected uri=%q, got %#v", "/some/path", fields["uri"])
-	}
-}
-
-func TestLoggingMiddleware_StatusFromExplicitWriteHeader(t *testing.T) {
-	core, logs := observer.New(zap.InfoLevel)
-	log := zap.New(core)
-
-	h := LoggingMiddleware(log, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}))
-
-	req := httptest.NewRequest(http.MethodPost, "http://example.test/value", nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-
-	entries := logs.All()
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 log entry, got %d", len(entries))
-	}
-
-	var status int
-	for _, f := range entries[0].Context {
-		if f.Key == "status" {
-			status = int(f.Integer)
-		}
-	}
-	if status != http.StatusNoContent {
-		t.Fatalf("expected status=%d, got %d", http.StatusNoContent, status)
+			fields := map[string]any{}
+			for _, f := range entries[0].Context {
+				switch f.Key {
+				case "status", "response_size":
+					fields[f.Key] = int(f.Integer)
+				case "method", "uri":
+					fields[f.Key] = f.String
+				}
+			}
+			require.Equal(t, tc.wantStatus, fields["status"])
+			require.Equal(t, tc.method, fields["method"])
+			require.Equal(t, tc.wantURI, fields["uri"])
+			if tc.wantSize > 0 {
+				require.Equal(t, tc.wantSize, fields["response_size"])
+			}
+		})
 	}
 }

@@ -70,13 +70,13 @@ func TestNewAuthMiddleware(t *testing.T) {
 		{
 			name:       "public register without token",
 			method:     http.MethodPost,
-			path:       "/api/user/register",
+			path:       "/api/v1/user/register",
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "public login without token",
 			method:     http.MethodPost,
-			path:       "/api/user/login",
+			path:       "/api/v1/user/login",
 			wantStatus: http.StatusOK,
 		},
 	}

@@ -9,45 +9,63 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJWT_GenerateAndParse(t *testing.T) {
+func TestJWT_Parse(t *testing.T) {
 	t.Parallel()
 
-	tokens := user.NewJWT("test-secret", time.Hour)
 	id := uuid.New()
-
-	raw, err := tokens.Generate(id)
-	require.NoError(t, err)
-	require.NotEmpty(t, raw)
-
-	got, err := tokens.Parse(raw)
-	require.NoError(t, err)
-	require.Equal(t, id, got)
-}
-
-func TestJWT_ParseRejectsGarbageAndWrongSecret(t *testing.T) {
-	t.Parallel()
-
-	tokens := user.NewJWT("test-secret", time.Hour)
-	_, err := tokens.Parse("not-a-jwt")
-	require.ErrorIs(t, err, user.ErrUnauthorized)
-
-	other := user.NewJWT("other-secret", time.Hour)
-	id := uuid.New()
-	raw, err := tokens.Generate(id)
+	valid := user.NewJWT("test-secret", time.Hour)
+	raw, err := valid.Generate(id)
 	require.NoError(t, err)
 
-	_, err = other.Parse(raw)
-	require.ErrorIs(t, err, user.ErrUnauthorized)
-}
-
-func TestJWT_ParseRejectsExpired(t *testing.T) {
-	t.Parallel()
-
-	tokens := user.NewJWT("test-secret", time.Nanosecond)
-	raw, err := tokens.Generate(uuid.New())
+	expired := user.NewJWT("test-secret", time.Nanosecond)
+	expiredRaw, err := expired.Generate(uuid.New())
 	require.NoError(t, err)
 	time.Sleep(2 * time.Millisecond)
 
-	_, err = tokens.Parse(raw)
-	require.ErrorIs(t, err, user.ErrUnauthorized)
+	tests := []struct {
+		name    string
+		tokens  *user.JWT
+		raw     string
+		wantID  uuid.UUID
+		wantErr error
+	}{
+		{
+			name:   "valid",
+			tokens: valid,
+			raw:    raw,
+			wantID: id,
+		},
+		{
+			name:    "garbage",
+			tokens:  valid,
+			raw:     "not-a-jwt",
+			wantErr: user.ErrUnauthorized,
+		},
+		{
+			name:    "wrong secret",
+			tokens:  user.NewJWT("other-secret", time.Hour),
+			raw:     raw,
+			wantErr: user.ErrUnauthorized,
+		},
+		{
+			name:    "expired",
+			tokens:  expired,
+			raw:     expiredRaw,
+			wantErr: user.ErrUnauthorized,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := tc.tokens.Parse(tc.raw)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantID, got)
+		})
+	}
 }
