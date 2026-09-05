@@ -17,6 +17,9 @@ wire:
 mock:
 	go tool mockery
 
+lint:
+	golangci-lint run --config .golangci.yml
+
 BUILDINFO_PKG := github.com/Radiushina/GophKeeper/internal/domains/buildinfo
 VERSION ?= 0.1.0
 DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
