@@ -11,6 +11,15 @@ import (
 )
 
 var (
+	rn5AllowedHeaders = map[string]string{
+		"GET":  "Authorization",
+		"POST": "Authorization,Content-Type",
+	}
+	rn7AllowedHeaders = map[string]string{
+		"DELETE": "Authorization",
+		"GET":    "Authorization",
+		"PUT":    "Authorization,Content-Type",
+	}
 	rn1AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -49,6 +58,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [1]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -57,9 +67,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/api/user/"
+		case '/': // Prefix: "/api/v1/"
 
-			if l := len("/api/user/"); len(elem) >= l && elem[0:l] == "/api/user/" {
+			if l := len("/api/v1/"); len(elem) >= l && elem[0:l] == "/api/v1/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -69,23 +79,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'l': // Prefix: "login"
+			case 'n': // Prefix: "notes"
 
-				if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+				if l := len("notes"); len(elem) >= l && elem[0:l] == "notes" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch r.Method {
+					case "GET":
+						s.handleListNotesRequest([0]string{}, elemIsEscaped, w, r)
 					case "POST":
-						s.handleAPIUserLoginPostRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleNoteCreateRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "POST",
-							allowedHeaders: rn1AllowedHeaders,
+							allowedMethods: "GET,POST",
+							allowedHeaders: rn5AllowedHeaders,
 							acceptPost:     "application/json",
 							acceptPatch:    "",
 						})
@@ -93,30 +104,115 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					return
 				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
 
-			case 'r': // Prefix: "register"
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
 
-				if l := len("register"); len(elem) >= l && elem[0:l] == "register" {
+					// Param: "id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleNoteDeleteRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "GET":
+							s.handleNoteGetRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "PUT":
+							s.handleNoteUpdateRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "DELETE,GET,PUT",
+								allowedHeaders: rn7AllowedHeaders,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				}
+
+			case 'u': // Prefix: "user/"
+
+				if l := len("user/"); len(elem) >= l && elem[0:l] == "user/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleAPIUserRegisterPostRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "POST",
-							allowedHeaders: rn3AllowedHeaders,
-							acceptPost:     "application/json",
-							acceptPatch:    "",
-						})
+					break
+				}
+				switch elem[0] {
+				case 'l': // Prefix: "login"
+
+					if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+						elem = elem[l:]
+					} else {
+						break
 					}
 
-					return
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleAuthLoginRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn1AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				case 'r': // Prefix: "register"
+
+					if l := len("register"); len(elem) >= l && elem[0:l] == "register" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleAuthRegisterRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn3AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -134,7 +230,7 @@ type Route struct {
 	operationGroup string
 	pathPattern    string
 	count          int
-	args           [0]string
+	args           [1]string
 }
 
 // Name returns ogen operation name.
@@ -207,9 +303,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/api/user/"
+		case '/': // Prefix: "/api/v1/"
 
-			if l := len("/api/user/"); len(elem) >= l && elem[0:l] == "/api/user/" {
+			if l := len("/api/v1/"); len(elem) >= l && elem[0:l] == "/api/v1/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -219,23 +315,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'l': // Prefix: "login"
+			case 'n': // Prefix: "notes"
 
-				if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+				if l := len("notes"); len(elem) >= l && elem[0:l] == "notes" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch method {
+					case "GET":
+						r.name = ListNotesOperation
+						r.summary = "Список текстовых записей владельца (UI и офлайн-синк)"
+						r.operationID = "list-notes"
+						r.operationGroup = "Notes"
+						r.pathPattern = "/api/v1/notes"
+						r.args = args
+						r.count = 0
+						return r, true
 					case "POST":
-						r.name = APIUserLoginPostOperation
-						r.summary = "Аутентификация пользователя"
-						r.operationID = ""
-						r.operationGroup = ""
-						r.pathPattern = "/api/user/login"
+						r.name = NoteCreateOperation
+						r.summary = "Создать текстовую запись"
+						r.operationID = "note-create"
+						r.operationGroup = "Notes"
+						r.pathPattern = "/api/v1/notes"
 						r.args = args
 						r.count = 0
 						return r, true
@@ -243,30 +347,123 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						return
 					}
 				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
 
-			case 'r': // Prefix: "register"
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
 
-				if l := len("register"); len(elem) >= l && elem[0:l] == "register" {
+					// Param: "id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = NoteDeleteOperation
+							r.summary = "Удалить текстовую запись (tombstone)"
+							r.operationID = "noteDelete"
+							r.operationGroup = "Notes"
+							r.pathPattern = "/api/v1/notes/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "GET":
+							r.name = NoteGetOperation
+							r.summary = "Текстовая запись владельца"
+							r.operationID = "note-get"
+							r.operationGroup = "Notes"
+							r.pathPattern = "/api/v1/notes/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "PUT":
+							r.name = NoteUpdateOperation
+							r.summary = "Обновить текстовую запись"
+							r.operationID = "note-update"
+							r.operationGroup = "Notes"
+							r.pathPattern = "/api/v1/notes/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+				}
+
+			case 'u': // Prefix: "user/"
+
+				if l := len("user/"); len(elem) >= l && elem[0:l] == "user/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "POST":
-						r.name = APIUserRegisterPostOperation
-						r.summary = "Регистрация пользователя"
-						r.operationID = ""
-						r.operationGroup = ""
-						r.pathPattern = "/api/user/register"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
+					break
+				}
+				switch elem[0] {
+				case 'l': // Prefix: "login"
+
+					if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+						elem = elem[l:]
+					} else {
+						break
 					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = AuthLoginOperation
+							r.summary = "Аутентификация пользователя"
+							r.operationID = "auth-login"
+							r.operationGroup = "User"
+							r.pathPattern = "/api/v1/user/login"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'r': // Prefix: "register"
+
+					if l := len("register"); len(elem) >= l && elem[0:l] == "register" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = AuthRegisterOperation
+							r.summary = "Регистрация пользователя"
+							r.operationID = "auth-register"
+							r.operationGroup = "User"
+							r.pathPattern = "/api/v1/user/register"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

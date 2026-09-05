@@ -8,35 +8,84 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// APIUserLoginPost implements POST /api/user/login operation.
+	NotesHandler
+	UserHandler
+}
+
+// NotesHandler handles operations described by OpenAPI v3 specification.
+//
+// x-ogen-operation-group: Notes
+type NotesHandler interface {
+	// ListNotes implements list-notes operation.
+	//
+	// Только объекты текущего пользователя. Если передан
+	// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+	// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+	// — все живые объекты (без tombstone).
+	//
+	// GET /api/v1/notes
+	ListNotes(ctx context.Context, params ListNotesParams) (ListNotesRes, error)
+	// NoteCreate implements note-create operation.
+	//
+	// Создать текстовую запись.
+	//
+	// POST /api/v1/notes
+	NoteCreate(ctx context.Context, req *CreateNote) (NoteCreateRes, error)
+	// NoteDelete implements noteDelete operation.
+	//
+	// Удалить текстовую запись (tombstone).
+	//
+	// DELETE /api/v1/notes/{id}
+	NoteDelete(ctx context.Context, params NoteDeleteParams) (NoteDeleteRes, error)
+	// NoteGet implements note-get operation.
+	//
+	// Текстовая запись владельца.
+	//
+	// GET /api/v1/notes/{id}
+	NoteGet(ctx context.Context, params NoteGetParams) (NoteGetRes, error)
+	// NoteUpdate implements note-update operation.
+	//
+	// Обновить текстовую запись.
+	//
+	// PUT /api/v1/notes/{id}
+	NoteUpdate(ctx context.Context, req *UpdateNote, params NoteUpdateParams) (NoteUpdateRes, error)
+}
+
+// UserHandler handles operations described by OpenAPI v3 specification.
+//
+// x-ogen-operation-group: User
+type UserHandler interface {
+	// AuthLogin implements auth-login operation.
 	//
 	// Аутентификация пользователя.
 	//
-	// POST /api/user/login
-	APIUserLoginPost(ctx context.Context, req *APIUserLoginPostReq) (APIUserLoginPostRes, error)
-	// APIUserRegisterPost implements POST /api/user/register operation.
+	// POST /api/v1/user/login
+	AuthLogin(ctx context.Context, req *AuthLoginReq) (AuthLoginRes, error)
+	// AuthRegister implements auth-register operation.
 	//
 	// Регистрация пользователя.
 	//
-	// POST /api/user/register
-	APIUserRegisterPost(ctx context.Context, req *APIUserRegisterPostReq) (APIUserRegisterPostRes, error)
+	// POST /api/v1/user/register
+	AuthRegister(ctx context.Context, req *RegisterReq) (AuthRegisterRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and
 // calls Handler to handle requests.
 type Server struct {
-	h Handler
+	h   Handler
+	sec SecurityHandler
 	baseServer
 }
 
 // NewServer creates new Server.
-func NewServer(h Handler, opts ...ServerOption) (*Server, error) {
+func NewServer(h Handler, sec SecurityHandler, opts ...ServerOption) (*Server, error) {
 	s, err := newServerConfig(opts...).baseServer()
 	if err != nil {
 		return nil, err
 	}
 	return &Server{
 		h:          h,
+		sec:        sec,
 		baseServer: s,
 	}, nil
 }

@@ -10,8 +10,8 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
-func encodeAPIUserLoginPostRequest(
-	req *APIUserLoginPostReq,
+func encodeAuthLoginRequest(
+	req *AuthLoginReq,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -24,8 +24,36 @@ func encodeAPIUserLoginPostRequest(
 	return nil
 }
 
-func encodeAPIUserRegisterPostRequest(
-	req *APIUserRegisterPostReq,
+func encodeAuthRegisterRequest(
+	req *RegisterReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeNoteCreateRequest(
+	req *CreateNote,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeNoteUpdateRequest(
+	req *UpdateNote,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

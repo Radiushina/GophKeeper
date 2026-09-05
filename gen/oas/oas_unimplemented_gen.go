@@ -13,20 +13,68 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// APIUserLoginPost implements POST /api/user/login operation.
+// AuthLogin implements auth-login operation.
 //
 // Аутентификация пользователя.
 //
-// POST /api/user/login
-func (UnimplementedHandler) APIUserLoginPost(ctx context.Context, req *APIUserLoginPostReq) (r APIUserLoginPostRes, _ error) {
+// POST /api/v1/user/login
+func (UnimplementedHandler) AuthLogin(ctx context.Context, req *AuthLoginReq) (r AuthLoginRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// APIUserRegisterPost implements POST /api/user/register operation.
+// AuthRegister implements auth-register operation.
 //
 // Регистрация пользователя.
 //
-// POST /api/user/register
-func (UnimplementedHandler) APIUserRegisterPost(ctx context.Context, req *APIUserRegisterPostReq) (r APIUserRegisterPostRes, _ error) {
+// POST /api/v1/user/register
+func (UnimplementedHandler) AuthRegister(ctx context.Context, req *RegisterReq) (r AuthRegisterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListNotes implements list-notes operation.
+//
+// Только объекты текущего пользователя. Если передан
+// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+// — все живые объекты (без tombstone).
+//
+// GET /api/v1/notes
+func (UnimplementedHandler) ListNotes(ctx context.Context, params ListNotesParams) (r ListNotesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NoteCreate implements note-create operation.
+//
+// Создать текстовую запись.
+//
+// POST /api/v1/notes
+func (UnimplementedHandler) NoteCreate(ctx context.Context, req *CreateNote) (r NoteCreateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NoteDelete implements noteDelete operation.
+//
+// Удалить текстовую запись (tombstone).
+//
+// DELETE /api/v1/notes/{id}
+func (UnimplementedHandler) NoteDelete(ctx context.Context, params NoteDeleteParams) (r NoteDeleteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NoteGet implements note-get operation.
+//
+// Текстовая запись владельца.
+//
+// GET /api/v1/notes/{id}
+func (UnimplementedHandler) NoteGet(ctx context.Context, params NoteGetParams) (r NoteGetRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NoteUpdate implements note-update operation.
+//
+// Обновить текстовую запись.
+//
+// PUT /api/v1/notes/{id}
+func (UnimplementedHandler) NoteUpdate(ctx context.Context, req *UpdateNote, params NoteUpdateParams) (r NoteUpdateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

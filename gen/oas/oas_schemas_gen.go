@@ -3,18 +3,21 @@
 package oas
 
 import (
+	"time"
+
+	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 )
 
-type APIUserLoginPostBadRequest UnsuccessfulResponse
+type AuthLoginBadRequest UnsuccessfulResponse
 
-func (*APIUserLoginPostBadRequest) aPIUserLoginPostRes() {}
+func (*AuthLoginBadRequest) authLoginRes() {}
 
-type APIUserLoginPostInternalServerError UnsuccessfulResponse
+type AuthLoginInternalServerError UnsuccessfulResponse
 
-func (*APIUserLoginPostInternalServerError) aPIUserLoginPostRes() {}
+func (*AuthLoginInternalServerError) authLoginRes() {}
 
-type APIUserLoginPostReq struct {
+type AuthLoginReq struct {
 	// Логин.
 	Login string `json:"login"`
 	// Пароль.
@@ -22,73 +25,53 @@ type APIUserLoginPostReq struct {
 }
 
 // GetLogin returns the value of Login.
-func (s *APIUserLoginPostReq) GetLogin() string {
+func (s *AuthLoginReq) GetLogin() string {
 	return s.Login
 }
 
 // GetPassword returns the value of Password.
-func (s *APIUserLoginPostReq) GetPassword() string {
+func (s *AuthLoginReq) GetPassword() string {
 	return s.Password
 }
 
 // SetLogin sets the value of Login.
-func (s *APIUserLoginPostReq) SetLogin(val string) {
+func (s *AuthLoginReq) SetLogin(val string) {
 	s.Login = val
 }
 
 // SetPassword sets the value of Password.
-func (s *APIUserLoginPostReq) SetPassword(val string) {
+func (s *AuthLoginReq) SetPassword(val string) {
 	s.Password = val
 }
 
-type APIUserLoginPostUnauthorized UnsuccessfulResponse
+type AuthLoginUnauthorized UnsuccessfulResponse
 
-func (*APIUserLoginPostUnauthorized) aPIUserLoginPostRes() {}
+func (*AuthLoginUnauthorized) authLoginRes() {}
 
-type APIUserRegisterPostBadRequest UnsuccessfulResponse
+type AuthRegisterBadRequest UnsuccessfulResponse
 
-func (*APIUserRegisterPostBadRequest) aPIUserRegisterPostRes() {}
+func (*AuthRegisterBadRequest) authRegisterRes() {}
 
-type APIUserRegisterPostConflict UnsuccessfulResponse
+type AuthRegisterConflict UnsuccessfulResponse
 
-func (*APIUserRegisterPostConflict) aPIUserRegisterPostRes() {}
+func (*AuthRegisterConflict) authRegisterRes() {}
 
-type APIUserRegisterPostInternalServerError UnsuccessfulResponse
+type AuthRegisterInternalServerError UnsuccessfulResponse
 
-func (*APIUserRegisterPostInternalServerError) aPIUserRegisterPostRes() {}
+func (*AuthRegisterInternalServerError) authRegisterRes() {}
 
-type APIUserRegisterPostReq struct {
-	// Логин.
-	Login string `json:"login"`
-	// Пароль.
-	Password string `json:"password"`
-}
-
-// GetLogin returns the value of Login.
-func (s *APIUserRegisterPostReq) GetLogin() string {
-	return s.Login
-}
-
-// GetPassword returns the value of Password.
-func (s *APIUserRegisterPostReq) GetPassword() string {
-	return s.Password
-}
-
-// SetLogin sets the value of Login.
-func (s *APIUserRegisterPostReq) SetLogin(val string) {
-	s.Login = val
-}
-
-// SetPassword sets the value of Password.
-func (s *APIUserRegisterPostReq) SetPassword(val string) {
-	s.Password = val
-}
-
-// Ref: #/components/schemas/AuthUserRes
+// Ref: #/AuthUserRes
 type AuthUserRes struct {
 	User User `json:"user"`
 	// JWT-токен (дублирует значение из заголовка Authorization).
 	Token string `json:"token"`
+	// Соль Argon2id из регистрации. Сервер не считает KEK.
+	KdfSalt   []byte    `json:"kdf_salt"`
+	KdfParams KdfParams `json:"kdf_params"`
+	// Обёрнутый vault key. Сервер отдаёт как есть.
+	ProtectedKey []byte `json:"protected_key"`
+	// SHA-256(VK) для проверки unwrap на клиенте.
+	KeyHash []byte `json:"key_hash"`
 }
 
 // GetUser returns the value of User.
@@ -101,6 +84,26 @@ func (s *AuthUserRes) GetToken() string {
 	return s.Token
 }
 
+// GetKdfSalt returns the value of KdfSalt.
+func (s *AuthUserRes) GetKdfSalt() []byte {
+	return s.KdfSalt
+}
+
+// GetKdfParams returns the value of KdfParams.
+func (s *AuthUserRes) GetKdfParams() KdfParams {
+	return s.KdfParams
+}
+
+// GetProtectedKey returns the value of ProtectedKey.
+func (s *AuthUserRes) GetProtectedKey() []byte {
+	return s.ProtectedKey
+}
+
+// GetKeyHash returns the value of KeyHash.
+func (s *AuthUserRes) GetKeyHash() []byte {
+	return s.KeyHash
+}
+
 // SetUser sets the value of User.
 func (s *AuthUserRes) SetUser(val User) {
 	s.User = val
@@ -109,6 +112,26 @@ func (s *AuthUserRes) SetUser(val User) {
 // SetToken sets the value of Token.
 func (s *AuthUserRes) SetToken(val string) {
 	s.Token = val
+}
+
+// SetKdfSalt sets the value of KdfSalt.
+func (s *AuthUserRes) SetKdfSalt(val []byte) {
+	s.KdfSalt = val
+}
+
+// SetKdfParams sets the value of KdfParams.
+func (s *AuthUserRes) SetKdfParams(val KdfParams) {
+	s.KdfParams = val
+}
+
+// SetProtectedKey sets the value of ProtectedKey.
+func (s *AuthUserRes) SetProtectedKey(val []byte) {
+	s.ProtectedKey = val
+}
+
+// SetKeyHash sets the value of KeyHash.
+func (s *AuthUserRes) SetKeyHash(val []byte) {
+	s.KeyHash = val
 }
 
 // AuthUserResHeaders wraps AuthUserRes with response headers.
@@ -137,8 +160,505 @@ func (s *AuthUserResHeaders) SetResponse(val AuthUserRes) {
 	s.Response = val
 }
 
-func (*AuthUserResHeaders) aPIUserLoginPostRes()    {}
-func (*AuthUserResHeaders) aPIUserRegisterPostRes() {}
+func (*AuthUserResHeaders) authLoginRes()    {}
+func (*AuthUserResHeaders) authRegisterRes() {}
+
+type BearerAuth struct {
+	Token string
+	Roles []string
+}
+
+// GetToken returns the value of Token.
+func (s *BearerAuth) GetToken() string {
+	return s.Token
+}
+
+// GetRoles returns the value of Roles.
+func (s *BearerAuth) GetRoles() []string {
+	return s.Roles
+}
+
+// SetToken sets the value of Token.
+func (s *BearerAuth) SetToken(val string) {
+	s.Token = val
+}
+
+// SetRoles sets the value of Roles.
+func (s *BearerAuth) SetRoles(val []string) {
+	s.Roles = val
+}
+
+// Ref: #/CreateNote
+type CreateNote struct {
+	// Идентификатор.
+	ID uuid.UUID `json:"id"`
+	// При создании — `1`. Несовпадение — 409.
+	Version int64 `json:"version"`
+	// Nonce(number used once) - одноразовое случайное число, которое
+	// идет вместе с AES-256-GCM (12 байт).
+	Nonce []byte `json:"nonce"`
+	// Зашифрованный текст: AES-256-GCM от секрета и текстовой
+	// метаинформации. Сервер не расшифровывает. Макс. размер
+	// открытого текста — 1MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Если передан — сервер сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetID returns the value of ID.
+func (s *CreateNote) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetVersion returns the value of Version.
+func (s *CreateNote) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *CreateNote) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *CreateNote) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *CreateNote) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetID sets the value of ID.
+func (s *CreateNote) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CreateNote) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *CreateNote) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *CreateNote) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *CreateNote) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
+// Публичные параметры Argon2id. Сервер задаёт политику и
+// хранит снимок на пользователя; клиент не выбирает
+// memory/iterations сам. Пароль → KEK, KEK снимает обёртку с vault key.
+// Сервер KEK не считает.
+// Ref: #/KdfParams
+type KdfParams struct {
+	Algorithm KdfParamsAlgorithm `json:"algorithm"`
+	// Память Argon2 в KiB. Минимум OWASP (19 MiB).
+	Memory      int `json:"memory"`
+	Iterations  int `json:"iterations"`
+	Parallelism int `json:"parallelism"`
+	// Версия Argon2 (0x13).
+	Version KdfParamsVersion `json:"version"`
+}
+
+// GetAlgorithm returns the value of Algorithm.
+func (s *KdfParams) GetAlgorithm() KdfParamsAlgorithm {
+	return s.Algorithm
+}
+
+// GetMemory returns the value of Memory.
+func (s *KdfParams) GetMemory() int {
+	return s.Memory
+}
+
+// GetIterations returns the value of Iterations.
+func (s *KdfParams) GetIterations() int {
+	return s.Iterations
+}
+
+// GetParallelism returns the value of Parallelism.
+func (s *KdfParams) GetParallelism() int {
+	return s.Parallelism
+}
+
+// GetVersion returns the value of Version.
+func (s *KdfParams) GetVersion() KdfParamsVersion {
+	return s.Version
+}
+
+// SetAlgorithm sets the value of Algorithm.
+func (s *KdfParams) SetAlgorithm(val KdfParamsAlgorithm) {
+	s.Algorithm = val
+}
+
+// SetMemory sets the value of Memory.
+func (s *KdfParams) SetMemory(val int) {
+	s.Memory = val
+}
+
+// SetIterations sets the value of Iterations.
+func (s *KdfParams) SetIterations(val int) {
+	s.Iterations = val
+}
+
+// SetParallelism sets the value of Parallelism.
+func (s *KdfParams) SetParallelism(val int) {
+	s.Parallelism = val
+}
+
+// SetVersion sets the value of Version.
+func (s *KdfParams) SetVersion(val KdfParamsVersion) {
+	s.Version = val
+}
+
+type KdfParamsAlgorithm string
+
+const (
+	KdfParamsAlgorithmArgon2id KdfParamsAlgorithm = "argon2id"
+)
+
+// AllValues returns all KdfParamsAlgorithm values.
+func (KdfParamsAlgorithm) AllValues() []KdfParamsAlgorithm {
+	return []KdfParamsAlgorithm{
+		KdfParamsAlgorithmArgon2id,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s KdfParamsAlgorithm) MarshalText() ([]byte, error) {
+	switch s {
+	case KdfParamsAlgorithmArgon2id:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *KdfParamsAlgorithm) UnmarshalText(data []byte) error {
+	switch KdfParamsAlgorithm(data) {
+	case KdfParamsAlgorithmArgon2id:
+		*s = KdfParamsAlgorithmArgon2id
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Версия Argon2 (0x13).
+type KdfParamsVersion int
+
+const (
+	KdfParamsVersion19 KdfParamsVersion = 19
+)
+
+// AllValues returns all KdfParamsVersion values.
+func (KdfParamsVersion) AllValues() []KdfParamsVersion {
+	return []KdfParamsVersion{
+		KdfParamsVersion19,
+	}
+}
+
+type ListNotesBadRequest UnsuccessfulResponse
+
+func (*ListNotesBadRequest) listNotesRes() {}
+
+type ListNotesInternalServerError UnsuccessfulResponse
+
+func (*ListNotesInternalServerError) listNotesRes() {}
+
+type ListNotesUnauthorized UnsuccessfulResponse
+
+func (*ListNotesUnauthorized) listNotesRes() {}
+
+// Произвольные текстовые данные владельца.
+// Ref: #/Note
+type Note struct {
+	// Идентификатор записи. Задаёт клиент при создании.
+	ID uuid.UUID `json:"id"`
+	// Тип записи. Всегда `note`.
+	Kind NoteKind `json:"kind"`
+	// Версия записи для оптимистичной блокировки и синка.
+	Version int64 `json:"version"`
+	// Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
+	// Сервер хранит как есть, не интерпретирует.
+	Nonce []byte `json:"nonce"`
+	// Шифротекст заметки (секрет и метаинформация). Сервер
+	// не расшифровывает.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Опционально; если был при
+	// создании/обновлении — отдаётся обратно.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+	// Tombstone для синка на другие устройства. Заполнено только
+	// у удалённых записей.
+	DeletedAt OptDateTime `json:"deleted_at"`
+	// Время создания записи на сервере (RFC3339).
+	CreatedAt time.Time `json:"created_at"`
+	// Время последнего изменения на сервере (RFC3339).
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetID returns the value of ID.
+func (s *Note) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *Note) GetKind() NoteKind {
+	return s.Kind
+}
+
+// GetVersion returns the value of Version.
+func (s *Note) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *Note) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *Note) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *Note) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *Note) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Note) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *Note) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Note) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *Note) SetKind(val NoteKind) {
+	s.Kind = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Note) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *Note) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *Note) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *Note) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *Note) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Note) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *Note) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*Note) noteCreateRes() {}
+func (*Note) noteDeleteRes() {}
+func (*Note) noteGetRes()    {}
+func (*Note) noteUpdateRes() {}
+
+type NoteCreateBadRequest UnsuccessfulResponse
+
+func (*NoteCreateBadRequest) noteCreateRes() {}
+
+type NoteCreateConflict UnsuccessfulResponse
+
+func (*NoteCreateConflict) noteCreateRes() {}
+
+type NoteCreateInternalServerError UnsuccessfulResponse
+
+func (*NoteCreateInternalServerError) noteCreateRes() {}
+
+type NoteCreateUnauthorized UnsuccessfulResponse
+
+func (*NoteCreateUnauthorized) noteCreateRes() {}
+
+type NoteDeleteInternalServerError UnsuccessfulResponse
+
+func (*NoteDeleteInternalServerError) noteDeleteRes() {}
+
+type NoteDeleteNotFound UnsuccessfulResponse
+
+func (*NoteDeleteNotFound) noteDeleteRes() {}
+
+type NoteDeleteUnauthorized UnsuccessfulResponse
+
+func (*NoteDeleteUnauthorized) noteDeleteRes() {}
+
+type NoteGetInternalServerError UnsuccessfulResponse
+
+func (*NoteGetInternalServerError) noteGetRes() {}
+
+type NoteGetNotFound UnsuccessfulResponse
+
+func (*NoteGetNotFound) noteGetRes() {}
+
+type NoteGetUnauthorized UnsuccessfulResponse
+
+func (*NoteGetUnauthorized) noteGetRes() {}
+
+// Тип записи. Всегда `note`.
+type NoteKind string
+
+const (
+	NoteKindNote NoteKind = "note"
+)
+
+// AllValues returns all NoteKind values.
+func (NoteKind) AllValues() []NoteKind {
+	return []NoteKind{
+		NoteKindNote,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NoteKind) MarshalText() ([]byte, error) {
+	switch s {
+	case NoteKindNote:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NoteKind) UnmarshalText(data []byte) error {
+	switch NoteKind(data) {
+	case NoteKindNote:
+		*s = NoteKindNote
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/NoteListRes
+type NoteListRes struct {
+	Items []Note `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *NoteListRes) GetItems() []Note {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *NoteListRes) SetItems(val []Note) {
+	s.Items = val
+}
+
+func (*NoteListRes) listNotesRes() {}
+
+type NoteUpdateBadRequest UnsuccessfulResponse
+
+func (*NoteUpdateBadRequest) noteUpdateRes() {}
+
+type NoteUpdateConflict UnsuccessfulResponse
+
+func (*NoteUpdateConflict) noteUpdateRes() {}
+
+type NoteUpdateInternalServerError UnsuccessfulResponse
+
+func (*NoteUpdateInternalServerError) noteUpdateRes() {}
+
+type NoteUpdateNotFound UnsuccessfulResponse
+
+func (*NoteUpdateNotFound) noteUpdateRes() {}
+
+type NoteUpdateUnauthorized UnsuccessfulResponse
+
+func (*NoteUpdateUnauthorized) noteUpdateRes() {}
+
+// NewOptDateTime returns new OptDateTime with value set to v.
+func NewOptDateTime(v time.Time) OptDateTime {
+	return OptDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDateTime is optional time.Time.
+type OptDateTime struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDateTime was set.
+func (o OptDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDateTime) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
@@ -186,6 +706,76 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
+// Ref: #/RegisterReq
+type RegisterReq struct {
+	// Логин.
+	Login string `json:"login"`
+	// Пароль учётки. Сервер хранит только login-hash, не KEK.
+	Password string `json:"password"`
+	// Соль Argon2id, 16 байт. Генерирует клиент.
+	KdfSalt []byte `json:"kdf_salt"`
+	// Обёрнутый vault key(VK): AES-256-GCM(KEK, VK). VK случайный, его
+	// придумывает клиент. Из пароля + kdf_salt(+параметр Argon2)
+	// получаем ключ-обёртку (KEK). KEK заворачивает VK →
+	// получается protected_key. На сервер уходит только обёртка.
+	// Сам VK и KEK на сервер не едут. При смене пароля —
+	// перезаворачиваем тот же VK в новую обёртку. Все
+	// заметки/файлы перешифровывать не надо.
+	ProtectedKey []byte `json:"protected_key"`
+	// Отпечаток VK (SHA-256). Клиент сверяет после unwrap.
+	KeyHash []byte `json:"key_hash"`
+}
+
+// GetLogin returns the value of Login.
+func (s *RegisterReq) GetLogin() string {
+	return s.Login
+}
+
+// GetPassword returns the value of Password.
+func (s *RegisterReq) GetPassword() string {
+	return s.Password
+}
+
+// GetKdfSalt returns the value of KdfSalt.
+func (s *RegisterReq) GetKdfSalt() []byte {
+	return s.KdfSalt
+}
+
+// GetProtectedKey returns the value of ProtectedKey.
+func (s *RegisterReq) GetProtectedKey() []byte {
+	return s.ProtectedKey
+}
+
+// GetKeyHash returns the value of KeyHash.
+func (s *RegisterReq) GetKeyHash() []byte {
+	return s.KeyHash
+}
+
+// SetLogin sets the value of Login.
+func (s *RegisterReq) SetLogin(val string) {
+	s.Login = val
+}
+
+// SetPassword sets the value of Password.
+func (s *RegisterReq) SetPassword(val string) {
+	s.Password = val
+}
+
+// SetKdfSalt sets the value of KdfSalt.
+func (s *RegisterReq) SetKdfSalt(val []byte) {
+	s.KdfSalt = val
+}
+
+// SetProtectedKey sets the value of ProtectedKey.
+func (s *RegisterReq) SetProtectedKey(val []byte) {
+	s.ProtectedKey = val
+}
+
+// SetKeyHash sets the value of KeyHash.
+func (s *RegisterReq) SetKeyHash(val []byte) {
+	s.KeyHash = val
+}
+
 // Ref: #/components/schemas/UnsuccessfulResponse
 type UnsuccessfulResponse struct {
 	Msg string `json:"msg"`
@@ -199,6 +789,65 @@ func (s *UnsuccessfulResponse) GetMsg() string {
 // SetMsg sets the value of Msg.
 func (s *UnsuccessfulResponse) SetMsg(val string) {
 	s.Msg = val
+}
+
+// Тело запроса на обновление текстовой записи.
+// Ref: #/UpdateNote
+type UpdateNote struct {
+	// Текущая версия записи на сервере (оптимистичная
+	// блокировка). Несовпадение — 409. После успеха сервер
+	// увеличивает версию на 1.
+	Version int64 `json:"version"`
+	// Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
+	// При каждом изменении клиент генерирует новый nonce.
+	Nonce []byte `json:"nonce"`
+	// Новый шифротекст: AES-256-GCM от секрета и текстовой
+	// метаинформации. Сервер не расшифровывает. Макс. размер
+	// открытого текста — 1 MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 нового шифротекста. Если передан — сервер
+	// сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateNote) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *UpdateNote) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *UpdateNote) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *UpdateNote) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateNote) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *UpdateNote) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *UpdateNote) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *UpdateNote) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
 }
 
 // Ref: #/User

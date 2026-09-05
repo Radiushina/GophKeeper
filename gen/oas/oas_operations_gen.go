@@ -6,6 +6,11 @@ package oas
 type OperationName = string
 
 const (
-	APIUserLoginPostOperation    OperationName = "APIUserLoginPost"
-	APIUserRegisterPostOperation OperationName = "APIUserRegisterPost"
+	AuthLoginOperation    OperationName = "AuthLogin"
+	AuthRegisterOperation OperationName = "AuthRegister"
+	ListNotesOperation    OperationName = "ListNotes"
+	NoteCreateOperation   OperationName = "NoteCreate"
+	NoteDeleteOperation   OperationName = "NoteDelete"
+	NoteGetOperation      OperationName = "NoteGet"
+	NoteUpdateOperation   OperationName = "NoteUpdate"
 )
