@@ -39,6 +39,15 @@ login -login alice -password secret
 tui
 ```
 
+Заметки (после `login` в этой же сессии; текст шифруется vault key до отправки):
+```text
+note-add -text "secret" -meta "work"
+note-list
+note-get -id 550e8400-e29b-41d4-a716-446655440000
+note-update -id 550e8400-e29b-41d4-a716-446655440000 -text "changed"
+note-delete -id 550e8400-e29b-41d4-a716-446655440000
+```
+
 Версия и дата сборки бинарника:
 
 ```text
