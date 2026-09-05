@@ -9,6 +9,7 @@ package di
 import (
 	"context"
 	"github.com/Radiushina/GophKeeper/cmd/server/di/providers"
+	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 )
 
@@ -32,11 +33,15 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 		return nil, nil, err
 	}
 	usersRepo := user.NewRepository(pool)
+	notesRepo := note.NewRepository(pool)
 	jwt := providers.NewJWT(config)
 	hasher := user.NewHasher()
 	service := user.NewService(usersRepo, jwt, hasher)
+	noteService := note.NewService(notesRepo)
 	handler := user.NewHandler(service, logger)
-	server, err := providers.NewHTTPServer(config, handler, jwt, logger)
+	noteHandler := note.NewHandler(noteService, logger)
+	oasHandler := providers.NewOASHandler(handler, noteHandler)
+	server, err := providers.NewHTTPServer(config, oasHandler, jwt, logger)
 	if err != nil {
 		cleanup2()
 		cleanup()

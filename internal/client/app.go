@@ -10,12 +10,13 @@ import (
 )
 
 type App struct {
-	mu     sync.Mutex
-	token  string
-	user   string
-	Server string
-	Client *oas.Client
-	Log    *zap.Logger
+	mu       sync.Mutex
+	token    string
+	user     string
+	vaultKey []byte
+	Server   string
+	Client   *oas.Client
+	Log      *zap.Logger
 }
 
 func (a *App) logError(msg string, err error, fields ...zap.Field) {
@@ -73,6 +74,20 @@ func (a *App) User() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.user
+}
+
+// SetVaultKey stores the unwrapped vault key in process memory.
+func (a *App) SetVaultKey(key []byte) {
+	a.mu.Lock()
+	a.vaultKey = append([]byte(nil), key...)
+	a.mu.Unlock()
+}
+
+// VaultKey returns a copy of the in-memory vault key.
+func (a *App) VaultKey() []byte {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]byte(nil), a.vaultKey...)
 }
 
 func rememberToken(a *App, token string) {
