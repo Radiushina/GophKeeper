@@ -70,9 +70,11 @@ paths:
                 login:
                   type: string
                   description: Логин
+                  example: alisa
                 password:
                   type: string
                   description: Пароль
+                  example: test
       responses:
         200:
           description: 'Успешная аутентификация'

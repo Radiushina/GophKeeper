@@ -1,6 +1,6 @@
 # Клиент GophKeeper
 
-CLI к удалённому API. После `register`/`login` JWT хранится в памяти этого процесса и сам уходит в `Authorization` на следующих запросах. `exit` или новый запуск — сессия сбрасывается.
+CLI к удалённому API. Учётку создаёт сервер (`POST /api/v1/user/register`). Клиент только логинится. После `login` JWT хранится в памяти этого процесса и сам уходит в `Authorization` на следующих запросах. `exit` или новый запуск — сессия сбрасывается.
 
 Перед запуском клиента сервер должен быть уже запущен.
 
@@ -25,10 +25,6 @@ go run ./cmd/client --server http://localhost:9090 -tui
 ## Команды в сессии
 
 После старта появится `>`.
-Регистарция:
-```text
-register -login alice -password secret
-```
 Аутентификация:
 ```text
 login -login alice -password secret

@@ -16,9 +16,10 @@ func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
 	app := &client.App{Log: log, Server: cfg.Client.HTTP.Address}
 	sec := tokenSource{app: app}
 	oasClient, err := oas.NewClient(cfg.Client.HTTP.Address, sec, oas.WithClient(&http.Client{
+		Timeout: 15 * time.Second,
 		Transport: &authTransport{
 			app:  app,
-			base: &loggingTransport{log: log, base: http.DefaultTransport},
+			base: &loggingTransport{app: app, base: http.DefaultTransport},
 		},
 	}))
 	if err != nil {
@@ -37,23 +38,30 @@ func (s tokenSource) BearerAuth(_ context.Context, _ oas.OperationName) (oas.Bea
 }
 
 type loggingTransport struct {
-	log  *zap.Logger
+	app  *client.App
 	base http.RoundTripper
 }
 
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	start := time.Now()
 	resp, err := t.base.RoundTrip(req)
+	log := (*zap.Logger)(nil)
+	if t.app != nil {
+		log = t.app.Log
+	}
+	if log == nil {
+		return resp, err
+	}
 	fields := []zap.Field{
 		zap.String("uri", req.URL.RequestURI()),
 		zap.String("method", req.Method),
 		zap.Duration("duration", time.Since(start)),
 	}
 	if err != nil {
-		t.log.Error("HTTP request", append(fields, zap.Error(err))...)
+		log.Error("HTTP request", append(fields, zap.Error(err))...)
 		return resp, err
 	}
-	t.log.Info("HTTP request",
+	log.Info("HTTP request",
 		append(fields,
 			zap.Int("status", resp.StatusCode),
 			zap.Int64("response_size", resp.ContentLength),

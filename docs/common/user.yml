@@ -45,23 +45,36 @@ AuthUserRes:
   properties:
     user:
       $ref: '#/User'
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        login: alisa
     token:
       type: string
       description: JWT-токен (дублирует значение из заголовка Authorization)
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGlzYSJ9.signature
     kdf_salt:
       type: string
       format: byte
       description: Соль Argon2id из регистрации. Сервер не считает KEK.
+      example: kq3n8vR2yF4aL0pQe9sTuw==
     kdf_params:
       $ref: '#/KdfParams'
+      example:
+        algorithm: argon2id
+        memory: 19456
+        iterations: 2
+        parallelism: 1
+        version: 19
     protected_key:
       type: string
       format: byte
       description: Обёрнутый vault key. Сервер отдаёт как есть.
+      example: VGhpcyBpcyBub3QgcmVhbCBwcm90ZWN0ZWQga2V5
     key_hash:
       type: string
       format: byte
       description: SHA-256(VK) для проверки unwrap на клиенте.
+      example: 47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 
 RegisterReq:
   type: object
@@ -72,15 +85,18 @@ RegisterReq:
       description: Логин
       x-ogen-validate:
         notBlank: true
+      example: alisa
     password:
       type: string
       description: Пароль учётки. Сервер хранит только login-hash, не KEK.
       x-ogen-validate:
         notBlank: true
+      example: test
     kdf_salt:
       type: string
       format: byte
       description: Соль Argon2id, 16 байт. Генерирует клиент.
+      example: /JD6oi1AjoVGASHcUZ2uZQ==
     protected_key:
       type: string
       format: byte
@@ -90,8 +106,10 @@ RegisterReq:
         KEK заворачивает VK → получается protected_key.
         На сервер уходит только обёртка. Сам VK и KEK на сервер не едут.
         При смене пароля — перезаворачиваем тот же VK в новую обёртку. Все заметки/файлы перешифровывать не надо.
+      example: aUfd0MW31aCkTtz6wSF/qUPohpYSO2yR0pNaewZKY4z17eK98rjk8kP2P2K+YnvhbCf2yHTme58fkKT9
     key_hash:
       type: string
       format: byte
       description: |
         Отпечаток VK (SHA-256). Клиент сверяет после unwrap.
+      example: 47UfEkv3gPogUgUwkKKAiEtiKENJnhTcvPUopyZb1JU=

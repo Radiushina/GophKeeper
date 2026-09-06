@@ -97,6 +97,5 @@ func rememberToken(a *App, token string) {
 func (a *App) logAuth(session *oas.AuthUserResHeaders) {
 	a.logInfo("authenticated",
 		zap.String("user", session.Response.User.Login),
-		zap.String("token", session.Response.Token),
 	)
 }

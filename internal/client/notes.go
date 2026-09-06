@@ -85,6 +85,10 @@ func NoteGet(ctx context.Context, app *App, id uuid.UUID) error {
 
 // NoteList prints decrypted notes. since is the optional sync cursor.
 func NoteList(ctx context.Context, app *App, since *time.Time) error {
+	return writeNoteList(ctx, app, since, os.Stdout)
+}
+
+func writeNoteList(ctx context.Context, app *App, since *time.Time, w io.Writer) error {
 	params := oas.ListNotesParams{}
 	if since != nil {
 		params.Since = oas.NewOptDateTime(*since)
@@ -96,7 +100,7 @@ func NoteList(ctx context.Context, app *App, since *time.Time) error {
 	switch v := res.(type) {
 	case *oas.NoteListRes:
 		for i := range v.Items {
-			if err := printNote(app, os.Stdout, v.Items[i]); err != nil {
+			if err := printNote(app, w, v.Items[i]); err != nil {
 				return err
 			}
 		}

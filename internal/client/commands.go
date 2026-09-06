@@ -8,25 +8,6 @@ import (
 	"github.com/Radiushina/GophKeeper/internal/vault"
 )
 
-func Register(ctx context.Context, app *App, login, password string) error {
-	material, err := vault.NewMaterial(password, vault.DefaultParams())
-	if err != nil {
-		return fmt.Errorf("vault material: %w", err)
-	}
-
-	res, err := app.Client.AuthRegister(ctx, &oas.RegisterReq{
-		Login:        login,
-		Password:     password,
-		KdfSalt:      material.Salt,
-		ProtectedKey: material.ProtectedKey,
-		KeyHash:      material.KeyHash,
-	})
-	if err != nil {
-		return err
-	}
-	return handleAuthRes(app, res, password)
-}
-
 func Login(ctx context.Context, app *App, login, password string) error {
 	res, err := app.Client.AuthLogin(ctx, &oas.AuthLoginReq{
 		Login:    login,
@@ -48,12 +29,6 @@ func handleAuthRes(app *App, res any, password string) error {
 		}
 		app.logAuth(v)
 		return nil
-	case *oas.AuthRegisterBadRequest:
-		return fmt.Errorf("%s", v.Msg)
-	case *oas.AuthRegisterConflict:
-		return fmt.Errorf("%s", v.Msg)
-	case *oas.AuthRegisterInternalServerError:
-		return fmt.Errorf("%s", v.Msg)
 	case *oas.AuthLoginBadRequest:
 		return fmt.Errorf("%s", v.Msg)
 	case *oas.AuthLoginUnauthorized:

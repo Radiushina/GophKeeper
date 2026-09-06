@@ -27,7 +27,7 @@ func Run(ctx context.Context, app *App, args []string) error {
 }
 
 func repl(ctx context.Context, app *App, in io.Reader, out io.Writer) error {
-	app.logInfo("GophKeeper. Commands: register, login, note-add, note-update, note-delete, note-get, note-list, tui, version, exit")
+	app.logInfo("GophKeeper. Commands: login, note-add, note-update, note-delete, note-get, note-list, tui, version, exit")
 	sc := bufio.NewScanner(in)
 	for {
 		fmt.Fprint(out, "> ")
@@ -53,12 +53,6 @@ func repl(ctx context.Context, app *App, in io.Reader, out io.Writer) error {
 
 func execCommand(ctx context.Context, app *App, args []string) error {
 	switch args[0] {
-	case "register":
-		login, password, err := parseAuthFlags(app, "register", args[1:])
-		if err != nil {
-			return err
-		}
-		return Register(ctx, app, login, password)
 	case "login":
 		login, password, err := parseAuthFlags(app, "login", args[1:])
 		if err != nil {
