@@ -14,6 +14,9 @@ func Login(ctx context.Context, app *App, login, password string) error {
 		Password: password,
 	})
 	if err != nil {
+		if isOffline(err) {
+			return loginOffline(app, login, password)
+		}
 		return err
 	}
 	return handleAuthRes(app, res, password)
@@ -27,6 +30,16 @@ func handleAuthRes(app *App, res any, password string) error {
 		if err := unlockVault(app, password, v.Response); err != nil {
 			return err
 		}
+		_ = saveSession(app, sessionCache{
+			Login:          v.Response.User.Login,
+			KdfSalt:        v.Response.KdfSalt,
+			ProtectedKey:   v.Response.ProtectedKey,
+			KeyHash:        v.Response.KeyHash,
+			KdfMemory:      uint32(v.Response.KdfParams.Memory),
+			KdfIterations:  uint32(v.Response.KdfParams.Iterations),
+			KdfParallelism: uint8(v.Response.KdfParams.Parallelism),
+			KdfVersion:     uint8(v.Response.KdfParams.Version),
+		})
 		app.logAuth(v)
 		return nil
 	case *oas.AuthLoginBadRequest:

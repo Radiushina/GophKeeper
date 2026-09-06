@@ -13,6 +13,7 @@ import (
 	"github.com/Radiushina/GophKeeper/internal/domains/buildinfo"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/term"
 )
 
 func Run(ctx context.Context, app *App, args []string) error {
@@ -103,14 +104,37 @@ func parseAuthFlags(app *App, name string, args []string) (login, password strin
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(app.logWriter())
 	fs.StringVar(&login, "login", "", "login")
-	fs.StringVar(&password, "password", "", "password")
 	if err := fs.Parse(args); err != nil {
 		return "", "", err
 	}
-	if login == "" || password == "" {
-		return "", "", fmt.Errorf("login and password are required")
+	if login == "" {
+		return "", "", fmt.Errorf("login is required")
+	}
+	password, err = readPassword(app)
+	if err != nil {
+		return "", "", err
+	}
+	if password == "" {
+		return "", "", fmt.Errorf("password is required")
 	}
 	return login, password, nil
+}
+
+func readPassword(app *App) (string, error) {
+	if app != nil && app.ReadPassword != nil {
+		raw, err := app.ReadPassword()
+		if err != nil {
+			return "", err
+		}
+		return string(raw), nil
+	}
+	fmt.Fprint(os.Stderr, "Password: ")
+	raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
 }
 
 func parseNoteAddFlags(app *App, args []string) (text, meta string, err error) {

@@ -78,6 +78,9 @@ func NoteDelete(ctx context.Context, app *App, id uuid.UUID) error {
 func NoteGet(ctx context.Context, app *App, id uuid.UUID) error {
 	res, err := app.Client.NoteGet(ctx, oas.NoteGetParams{ID: id})
 	if err != nil {
+		if isOffline(err) {
+			return writeCachedNote(app, id, os.Stdout)
+		}
 		return err
 	}
 	return handleNoteRes(app, res, os.Stdout)
@@ -95,15 +98,23 @@ func writeNoteList(ctx context.Context, app *App, since *time.Time, w io.Writer)
 	}
 	res, err := app.Client.ListNotes(ctx, params)
 	if err != nil {
+		if isOffline(err) {
+			return writeCachedNotes(app, w)
+		}
 		return err
 	}
 	switch v := res.(type) {
 	case *oas.NoteListRes:
+		live := make([]cachedNote, 0, len(v.Items))
 		for i := range v.Items {
 			if err := printNote(app, w, v.Items[i]); err != nil {
 				return err
 			}
+			if n, ok := toCachedNote(app, v.Items[i]); ok {
+				live = append(live, n)
+			}
 		}
+		_ = saveNotesCache(app, live)
 		return nil
 	case *oas.ListNotesBadRequest:
 		return fmt.Errorf("%s", v.Msg)
@@ -168,9 +179,61 @@ func fetchNote(ctx context.Context, app *App, id uuid.UUID) (oas.Note, error) {
 
 func handleNoteRes(app *App, res any, w io.Writer) error {
 	if n, ok := res.(*oas.Note); ok {
-		return printNote(app, w, *n)
+		if err := printNote(app, w, *n); err != nil {
+			return err
+		}
+		syncNoteCache(app, *n)
+		return nil
 	}
 	return noteMsg(res)
+}
+
+func toCachedNote(app *App, n oas.Note) (cachedNote, bool) {
+	if n.DeletedAt.IsSet() {
+		return cachedNote{}, false
+	}
+	plain, err := openNote(app, n)
+	if err != nil {
+		return cachedNote{}, false
+	}
+	return cachedNote{ID: n.ID, Version: n.Version, Text: plain.Text, Meta: plain.Meta}, true
+}
+
+func syncNoteCache(app *App, n oas.Note) {
+	if n.DeletedAt.IsSet() {
+		removeNotesCache(app, n.ID)
+		return
+	}
+	if cached, ok := toCachedNote(app, n); ok {
+		upsertNotesCache(app, cached)
+	}
+}
+
+func writeCachedNotes(app *App, w io.Writer) error {
+	notes, err := loadNotesCache(app)
+	if err != nil {
+		return fmt.Errorf("offline notes: %w", err)
+	}
+	for _, n := range notes {
+		if _, err := fmt.Fprintf(w, "%s v%d\n%s\n%s\n", n.ID, n.Version, n.Text, n.Meta); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeCachedNote(app *App, id uuid.UUID, w io.Writer) error {
+	notes, err := loadNotesCache(app)
+	if err != nil {
+		return fmt.Errorf("offline notes: %w", err)
+	}
+	for _, n := range notes {
+		if n.ID == id {
+			_, err := fmt.Fprintf(w, "%s v%d\n%s\n%s\n", n.ID, n.Version, n.Text, n.Meta)
+			return err
+		}
+	}
+	return fmt.Errorf("note not found in offline cache")
 }
 
 func printNote(app *App, w io.Writer, n oas.Note) error {

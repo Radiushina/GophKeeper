@@ -10,7 +10,6 @@ import (
 	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 	"github.com/spf13/pflag"
-	"go.uber.org/zap"
 )
 
 const (
@@ -87,13 +86,11 @@ func (l *Loader) loadDefaults() error {
 
 func (l *Loader) loadYAML() error {
 	if _, err := os.Stat(l.configPath); os.IsNotExist(err) {
-		logInfo("yaml config not found, using defaults+env+flags", zap.String("path", l.configPath))
 		return nil
 	}
 	if err := l.k.Load(file.Provider(l.configPath), yaml.Parser()); err != nil {
 		return fmt.Errorf("loadYAML: %w", err)
 	}
-	logInfo("yaml config loaded", zap.String("path", l.configPath))
 	return nil
 }
 
@@ -172,15 +169,4 @@ func collectFields(t reflect.Type, prefix string) []fieldMeta {
 		})
 	}
 	return out
-}
-
-func logInfo(msg string, fields ...zap.Field) {
-	cfg := zap.NewProductionConfig()
-	cfg.DisableStacktrace = true
-	zl, err := cfg.Build()
-	if err != nil {
-		return
-	}
-	defer func() { _ = zl.Sync() }()
-	zl.Info(msg, fields...)
 }

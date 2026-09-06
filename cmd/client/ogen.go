@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Radiushina/GophKeeper/config"
@@ -13,7 +15,11 @@ import (
 )
 
 func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
-	app := &client.App{Log: log, Server: cfg.Client.HTTP.Address}
+	cacheDir := filepath.Join(os.TempDir(), "gophkeeper")
+	if dir, err := os.UserConfigDir(); err == nil {
+		cacheDir = filepath.Join(dir, "gophkeeper")
+	}
+	app := &client.App{Log: log, Server: cfg.Client.HTTP.Address, CacheDir: cacheDir}
 	sec := tokenSource{app: app}
 	oasClient, err := oas.NewClient(cfg.Client.HTTP.Address, sec, oas.WithClient(&http.Client{
 		Timeout: 15 * time.Second,

@@ -10,13 +10,15 @@ import (
 )
 
 type App struct {
-	mu       sync.Mutex
-	token    string
-	user     string
-	vaultKey []byte
-	Server   string
-	Client   *oas.Client
-	Log      *zap.Logger
+	mu           sync.Mutex
+	token        string
+	user         string
+	vaultKey     []byte
+	Server       string
+	Client       *oas.Client
+	Log          *zap.Logger
+	CacheDir     string
+	ReadPassword func() ([]byte, error)
 }
 
 func (a *App) logError(msg string, err error, fields ...zap.Field) {

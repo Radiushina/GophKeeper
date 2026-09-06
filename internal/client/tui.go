@@ -517,6 +517,9 @@ func writeNoteDelete(ctx context.Context, app *App, id uuid.UUID) error {
 func fetchTuiNotes(ctx context.Context, app *App) ([]tuiNote, error) {
 	res, err := app.Client.ListNotes(ctx, oas.ListNotesParams{})
 	if err != nil {
+		if isOffline(err) {
+			return tuiNotesFromCache(app)
+		}
 		return nil, err
 	}
 	list, ok := res.(*oas.NoteListRes)
@@ -524,6 +527,7 @@ func fetchTuiNotes(ctx context.Context, app *App) ([]tuiNote, error) {
 		return nil, noteMsg(res)
 	}
 	items := make([]tuiNote, 0, len(list.Items))
+	live := make([]cachedNote, 0, len(list.Items))
 	for i := range list.Items {
 		n := list.Items[i]
 		if n.DeletedAt.IsSet() {
@@ -534,6 +538,20 @@ func fetchTuiNotes(ctx context.Context, app *App) ([]tuiNote, error) {
 			return nil, err
 		}
 		items = append(items, tuiNote{id: n.ID, version: n.Version, text: plain.Text, meta: plain.Meta})
+		live = append(live, cachedNote{ID: n.ID, Version: n.Version, Text: plain.Text, Meta: plain.Meta})
+	}
+	_ = saveNotesCache(app, live)
+	return items, nil
+}
+
+func tuiNotesFromCache(app *App) ([]tuiNote, error) {
+	notes, err := loadNotesCache(app)
+	if err != nil {
+		return nil, fmt.Errorf("offline notes: %w", err)
+	}
+	items := make([]tuiNote, 0, len(notes))
+	for _, n := range notes {
+		items = append(items, tuiNote{id: n.ID, version: n.Version, text: n.Text, meta: n.Meta})
 	}
 	return items, nil
 }

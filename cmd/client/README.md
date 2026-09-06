@@ -27,8 +27,9 @@ go run ./cmd/client --server http://localhost:9090 -tui
 После старта появится `>`.
 Аутентификация:
 ```text
-login -login alice -password secret
+login -login alice
 ```
+Пароль запрашивается интерактивно, без эха (как поле password в TUI). Флаг `-password` не принимается.
 
 Терминальный UI (из REPL, после `q` снова `>`):
 ```text
