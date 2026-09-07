@@ -46,6 +46,7 @@ func (h *Handler) NoteCreate(ctx context.Context, req *oas.CreateNote) (oas.Note
 		ID:               req.GetID(),
 		Version:          req.GetVersion(),
 		Nonce:            req.GetNonce(),
+		Meta:             req.GetMeta().Value,
 		Ciphertext:       req.GetCiphertext(),
 		CiphertextSHA256: req.GetCiphertextSHA256(),
 	})
@@ -73,6 +74,7 @@ func (h *Handler) NoteUpdate(ctx context.Context, req *oas.UpdateNote, params oa
 	n, err := h.service.Update(ctx, userID, params.ID, UpdateInput{
 		Version:          req.GetVersion(),
 		Nonce:            req.GetNonce(),
+		Meta:             req.GetMeta().Value,
 		Ciphertext:       req.GetCiphertext(),
 		CiphertextSHA256: req.GetCiphertextSHA256(),
 	})

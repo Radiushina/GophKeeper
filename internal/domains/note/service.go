@@ -41,11 +41,15 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in CreateInput) 
 	if err := validateBlob(in.Version, in.Nonce, in.Ciphertext, in.CiphertextSHA256); err != nil {
 		return Note{}, err
 	}
+	if err := validateMeta(in.Meta); err != nil {
+		return Note{}, err
+	}
 	created, err := s.repo.Create(ctx, Note{
 		ID:               in.ID,
 		UserID:           userID,
 		Version:          CreateVersion,
 		Nonce:            append([]byte(nil), in.Nonce...),
+		Meta:             in.Meta,
 		Ciphertext:       append([]byte(nil), in.Ciphertext...),
 		CiphertextSHA256: cloneHash(in.CiphertextSHA256),
 	})
@@ -63,11 +67,15 @@ func (s *Service) Update(ctx context.Context, userID, id uuid.UUID, in UpdateInp
 	if err := validateBlob(in.Version, in.Nonce, in.Ciphertext, in.CiphertextSHA256); err != nil {
 		return Note{}, err
 	}
+	if err := validateMeta(in.Meta); err != nil {
+		return Note{}, err
+	}
 	updated, err := s.repo.Update(ctx, Note{
 		ID:               id,
 		UserID:           userID,
 		Version:          in.Version,
 		Nonce:            append([]byte(nil), in.Nonce...),
+		Meta:             in.Meta,
 		Ciphertext:       append([]byte(nil), in.Ciphertext...),
 		CiphertextSHA256: cloneHash(in.CiphertextSHA256),
 	})

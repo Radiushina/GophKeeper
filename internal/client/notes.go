@@ -15,15 +15,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// NotePlain is the decrypted payload stored inside ciphertext.
+// NotePlain is the decrypted secret. Meta on the wire is plaintext.
 type NotePlain struct {
 	Text string `json:"text"`
-	Meta string `json:"meta"`
+	Meta string `json:"meta,omitempty"`
 }
 
 // NoteAdd encrypts a note and creates it on the server.
 func NoteAdd(ctx context.Context, app *App, text, meta string) error {
-	blob, err := sealNote(app, NotePlain{Text: text, Meta: meta})
+	blob, err := sealNote(app, NotePlain{Text: text})
 	if err != nil {
 		return err
 	}
@@ -31,6 +31,7 @@ func NoteAdd(ctx context.Context, app *App, text, meta string) error {
 		ID:               uuid.New(),
 		Version:          note.CreateVersion,
 		Nonce:            blob.nonce,
+		Meta:             oas.NewOptString(meta),
 		Ciphertext:       blob.ciphertext,
 		CiphertextSHA256: blob.sum[:],
 	})
@@ -49,13 +50,14 @@ func NoteUpdate(ctx context.Context, app *App, id uuid.UUID, version int64, text
 		}
 		version = current.Version
 	}
-	blob, err := sealNote(app, NotePlain{Text: text, Meta: meta})
+	blob, err := sealNote(app, NotePlain{Text: text})
 	if err != nil {
 		return err
 	}
 	res, err := app.Client.NoteUpdate(ctx, &oas.UpdateNote{
 		Version:          version,
 		Nonce:            blob.nonce,
+		Meta:             oas.NewOptString(meta),
 		Ciphertext:       blob.ciphertext,
 		CiphertextSHA256: blob.sum[:],
 	}, oas.NoteUpdateParams{ID: id})
@@ -161,6 +163,9 @@ func openNote(app *App, n oas.Note) (NotePlain, error) {
 	var plain NotePlain
 	if err := json.Unmarshal(raw, &plain); err != nil {
 		return NotePlain{}, err
+	}
+	if n.Meta.IsSet() {
+		plain.Meta = n.Meta.Value
 	}
 	return plain, nil
 }

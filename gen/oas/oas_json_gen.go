@@ -553,6 +553,12 @@ func (s *CreateNote) encodeFields(e *jx.Encoder) {
 		e.Base64(s.Nonce)
 	}
 	{
+		if s.Meta.Set {
+			e.FieldStart("meta")
+			s.Meta.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("ciphertext")
 		e.Base64(s.Ciphertext)
 	}
@@ -562,12 +568,13 @@ func (s *CreateNote) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreateNote = [5]string{
+var jsonFieldsNameOfCreateNote = [6]string{
 	0: "id",
 	1: "version",
 	2: "nonce",
-	3: "ciphertext",
-	4: "ciphertext_sha256",
+	3: "meta",
+	4: "ciphertext",
+	5: "ciphertext_sha256",
 }
 
 // Decode decodes CreateNote from json.
@@ -615,8 +622,18 @@ func (s *CreateNote) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"nonce\"")
 			}
+		case "meta":
+			if err := func() error {
+				s.Meta.Reset()
+				if err := s.Meta.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"meta\"")
+			}
 		case "ciphertext":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Base64()
 				s.Ciphertext = []byte(v)
@@ -648,7 +665,7 @@ func (s *CreateNote) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1064,6 +1081,12 @@ func (s *Note) encodeFields(e *jx.Encoder) {
 		e.Base64(s.Nonce)
 	}
 	{
+		if s.Meta.Set {
+			e.FieldStart("meta")
+			s.Meta.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("ciphertext")
 		e.Base64(s.Ciphertext)
 	}
@@ -1087,16 +1110,17 @@ func (s *Note) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNote = [9]string{
+var jsonFieldsNameOfNote = [10]string{
 	0: "id",
 	1: "kind",
 	2: "version",
 	3: "nonce",
-	4: "ciphertext",
-	5: "ciphertext_sha256",
-	6: "deleted_at",
-	7: "created_at",
-	8: "updated_at",
+	4: "meta",
+	5: "ciphertext",
+	6: "ciphertext_sha256",
+	7: "deleted_at",
+	8: "created_at",
+	9: "updated_at",
 }
 
 // Decode decodes Note from json.
@@ -1154,8 +1178,18 @@ func (s *Note) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"nonce\"")
 			}
+		case "meta":
+			if err := func() error {
+				s.Meta.Reset()
+				if err := s.Meta.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"meta\"")
+			}
 		case "ciphertext":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Base64()
 				s.Ciphertext = []byte(v)
@@ -1188,7 +1222,7 @@ func (s *Note) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"deleted_at\"")
 			}
 		case "created_at":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -1200,7 +1234,7 @@ func (s *Note) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"created_at\"")
 			}
 		case "updated_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -1221,8 +1255,8 @@ func (s *Note) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b10011111,
-		0b00000001,
+		0b00101111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2017,6 +2051,41 @@ func (s *OptDateTime) UnmarshalJSON(data []byte) error {
 	return s.Decode(d, json.DecodeDateTime)
 }
 
+// Encode encodes string as json.
+func (o OptString) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes string from json.
+func (o *OptString) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptString to nil")
+	}
+	o.Set = true
+	v, err := d.Str()
+	if err != nil {
+		return err
+	}
+	o.Value = string(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptString) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptString) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *RegisterReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -2295,6 +2364,12 @@ func (s *UpdateNote) encodeFields(e *jx.Encoder) {
 		e.Base64(s.Nonce)
 	}
 	{
+		if s.Meta.Set {
+			e.FieldStart("meta")
+			s.Meta.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("ciphertext")
 		e.Base64(s.Ciphertext)
 	}
@@ -2304,11 +2379,12 @@ func (s *UpdateNote) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfUpdateNote = [4]string{
+var jsonFieldsNameOfUpdateNote = [5]string{
 	0: "version",
 	1: "nonce",
-	2: "ciphertext",
-	3: "ciphertext_sha256",
+	2: "meta",
+	3: "ciphertext",
+	4: "ciphertext_sha256",
 }
 
 // Decode decodes UpdateNote from json.
@@ -2344,8 +2420,18 @@ func (s *UpdateNote) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"nonce\"")
 			}
+		case "meta":
+			if err := func() error {
+				s.Meta.Reset()
+				if err := s.Meta.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"meta\"")
+			}
 		case "ciphertext":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Base64()
 				s.Ciphertext = []byte(v)
@@ -2377,7 +2463,7 @@ func (s *UpdateNote) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

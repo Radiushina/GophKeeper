@@ -38,8 +38,8 @@ func TestHandler_Notes(t *testing.T) {
 			path:   func(uuid.UUID) string { return "/api/v1/notes" },
 			auth:   true,
 			body: func(id uuid.UUID) []byte {
-				return mustJSON(oas.CreateNote{
-					ID: id, Version: 1, Nonce: fillBytes(vault.NonceSize, 9), Ciphertext: fillBytes(32, 8),
+				return mustJSON(&oas.CreateNote{
+					ID: id, Version: 1, Nonce: fillBytes(vault.NonceSize, 9), Meta: oas.NewOptString("work"), Ciphertext: fillBytes(32, 8),
 				})
 			},
 			wantStatus: http.StatusOK,
@@ -50,6 +50,7 @@ func TestHandler_Notes(t *testing.T) {
 				require.Equal(t, id, got.ID)
 				require.Equal(t, int64(1), got.Version)
 				require.Equal(t, oas.NoteKindNote, got.Kind)
+				require.Equal(t, "work", got.Meta.Value)
 			},
 		},
 		{
@@ -62,7 +63,7 @@ func TestHandler_Notes(t *testing.T) {
 				createNote(t, base, token, id)
 			},
 			body: func(uuid.UUID) []byte {
-				return mustJSON(oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
+				return mustJSON(&oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -74,12 +75,12 @@ func TestHandler_Notes(t *testing.T) {
 			setup: func(t *testing.T, base, token string, id uuid.UUID) {
 				t.Helper()
 				createNote(t, base, token, id)
-				doJSON(t, http.MethodPut, base+"/api/v1/notes/"+id.String(), token, mustJSON(oas.UpdateNote{
+				doJSON(t, http.MethodPut, base+"/api/v1/notes/"+id.String(), token, mustJSON(&oas.UpdateNote{
 					Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6),
 				}), http.StatusOK)
 			},
 			body: func(uuid.UUID) []byte {
-				return mustJSON(oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
+				return mustJSON(&oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
 			},
 			wantStatus: http.StatusConflict,
 		},
@@ -160,7 +161,7 @@ func startNoteServer(t *testing.T) (*httptest.Server, string) {
 
 func createNote(t *testing.T, base, token string, id uuid.UUID) {
 	t.Helper()
-	doJSON(t, http.MethodPost, base+"/api/v1/notes", token, mustJSON(oas.CreateNote{
+	doJSON(t, http.MethodPost, base+"/api/v1/notes", token, mustJSON(&oas.CreateNote{
 		ID: id, Version: 1, Nonce: fillBytes(vault.NonceSize, 9), Ciphertext: fillBytes(32, 8),
 	}), http.StatusOK)
 }

@@ -26,11 +26,18 @@ Note:
         Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
         Сервер хранит как есть, не интерпретирует.
       example: dGVzdG5vbmNlMTIh
+    meta:
+      type: string
+      description: |
+        Незашифрованные метаданные: название, тег, привязка к сайту.
+        Сервер хранит как есть и может фильтровать без расшифровки секрета.
+      example: work
+      maxLength: 4096
     ciphertext:
       type: string
       format: byte
       description: |
-        Шифротекст заметки (секрет и метаинформация). Сервер не расшифровывает.
+        Шифротекст секрета (текст, пара логин/пароль). Сервер не расшифровывает.
       example: VGhpcyBpcyBub3QgcmVhbCBjaXBoZXJ0ZXh0
     ciphertext_sha256:
       type: string
@@ -71,11 +78,15 @@ CreateNote:
       type: string
       format: byte
       description: Nonce(number used once) - одноразовое случайное число, которое идет вместе с AES-256-GCM (12 байт).
+    meta:
+      type: string
+      description: Незашифрованные метаданные (название, тег, сайт).
+      maxLength: 4096
     ciphertext:
       type: string
       format: byte
       description: |
-        Зашифрованный текст: AES-256-GCM от секрета и текстовой метаинформации.
+        Зашифрованный секрет (AES-256-GCM). Метаданные в `meta`, не здесь.
         Сервер не расшифровывает. Макс. размер открытого текста — 1MiB.
     ciphertext_sha256:
       type: string
@@ -102,11 +113,15 @@ UpdateNote:
         Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
         При каждом изменении клиент генерирует новый nonce.
       example: dGVzdG5vbmNlMTIh
+    meta:
+      type: string
+      description: Незашифрованные метаданные (название, тег, сайт).
+      maxLength: 4096
     ciphertext:
       type: string
       format: byte
       description: |
-        Новый шифротекст: AES-256-GCM от секрета и текстовой метаинформации.
+        Новый шифротекст секрета (AES-256-GCM). Метаданные в `meta`, не здесь.
         Сервер не расшифровывает. Макс. размер открытого текста — 1 MiB.
       example: VGhpcyBpcyBub3QgcmVhbCBjaXBoZXJ0ZXh0
     ciphertext_sha256:

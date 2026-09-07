@@ -40,10 +40,12 @@ func TestRepo_NoteLifecycle(t *testing.T) {
 					UserID:     owner.ID,
 					Version:    1,
 					Nonce:      fillBytes(vault.NonceSize, 1),
+					Meta:       "work",
 					Ciphertext: fillBytes(32, 2),
 				})
 				require.NoError(t, err)
 				require.Equal(t, id, created.ID)
+				require.Equal(t, "work", created.Meta)
 			},
 		},
 		{

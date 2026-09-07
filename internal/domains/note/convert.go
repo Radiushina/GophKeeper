@@ -10,6 +10,7 @@ func toOAS(n Note) oas.Note {
 		Kind:             oas.NoteKindNote,
 		Version:          n.Version,
 		Nonce:            append([]byte(nil), n.Nonce...),
+		Meta:             oas.NewOptString(n.Meta),
 		Ciphertext:       append([]byte(nil), n.Ciphertext...),
 		CiphertextSHA256: append([]byte(nil), n.CiphertextSHA256...),
 		CreatedAt:        n.CreatedAt.UTC(),

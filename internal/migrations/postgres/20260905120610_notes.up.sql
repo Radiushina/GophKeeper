@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS notes (
     user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     version BIGINT NOT NULL,
     nonce BYTEA NOT NULL,
+    meta TEXT NOT NULL DEFAULT '',
     ciphertext BYTEA NOT NULL,
     ciphertext_sha256 BYTEA,
     deleted_at TIMESTAMPTZ,
@@ -11,3 +12,4 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 
 CREATE INDEX IF NOT EXISTS notes_user_updated_idx ON notes (user_id, updated_at);
+CREATE INDEX IF NOT EXISTS notes_user_meta_idx ON notes (user_id, meta);

@@ -468,7 +468,7 @@ func (m tuiModel) submitNoteDelete() (tea.Model, tea.Cmd) {
 }
 
 func writeNoteAdd(ctx context.Context, app *App, text, meta string) error {
-	blob, err := sealNote(app, NotePlain{Text: text, Meta: meta})
+	blob, err := sealNote(app, NotePlain{Text: text})
 	if err != nil {
 		return err
 	}
@@ -476,6 +476,7 @@ func writeNoteAdd(ctx context.Context, app *App, text, meta string) error {
 		ID:               uuid.New(),
 		Version:          note.CreateVersion,
 		Nonce:            blob.nonce,
+		Meta:             oas.NewOptString(meta),
 		Ciphertext:       blob.ciphertext,
 		CiphertextSHA256: blob.sum[:],
 	})
@@ -490,13 +491,14 @@ func writeNoteUpdate(ctx context.Context, app *App, id uuid.UUID, text, meta str
 	if err != nil {
 		return err
 	}
-	blob, err := sealNote(app, NotePlain{Text: text, Meta: meta})
+	blob, err := sealNote(app, NotePlain{Text: text})
 	if err != nil {
 		return err
 	}
 	res, err := app.Client.NoteUpdate(ctx, &oas.UpdateNote{
 		Version:          current.Version,
 		Nonce:            blob.nonce,
+		Meta:             oas.NewOptString(meta),
 		Ciphertext:       blob.ciphertext,
 		CiphertextSHA256: blob.sum[:],
 	}, oas.NoteUpdateParams{ID: id})

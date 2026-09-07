@@ -35,7 +35,7 @@ func TestService_Create(t *testing.T) {
 			name:  "ok",
 			owner: owner,
 			in: note.CreateInput{
-				ID: id, Version: note.CreateVersion, Nonce: nonce, Ciphertext: ct, CiphertextSHA256: sum[:],
+				ID: id, Version: note.CreateVersion, Nonce: nonce, Meta: "work", Ciphertext: ct, CiphertextSHA256: sum[:],
 			},
 		},
 		{
@@ -74,6 +74,12 @@ func TestService_Create(t *testing.T) {
 			in:      note.CreateInput{ID: uuid.New(), Version: 1, Nonce: nonce, Ciphertext: ct},
 			wantErr: note.ErrInvalid,
 		},
+		{
+			name:    "meta too large",
+			owner:   owner,
+			in:      note.CreateInput{ID: uuid.New(), Version: 1, Nonce: nonce, Meta: string(make([]byte, note.MaxMeta+1)), Ciphertext: ct},
+			wantErr: note.ErrInvalid,
+		},
 	}
 
 	for _, tc := range tests {
@@ -91,6 +97,7 @@ func TestService_Create(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.in.ID, got.ID)
 			require.Equal(t, int64(1), got.Version)
+			require.Equal(t, tc.in.Meta, got.Meta)
 		})
 	}
 }
@@ -225,6 +232,7 @@ func (m *memNotes) Update(_ context.Context, n note.Note) (note.Note, error) {
 	}
 	cur.Version++
 	cur.Nonce = n.Nonce
+	cur.Meta = n.Meta
 	cur.Ciphertext = n.Ciphertext
 	cur.CiphertextSHA256 = n.CiphertextSHA256
 	cur.UpdatedAt = time.Now().UTC()

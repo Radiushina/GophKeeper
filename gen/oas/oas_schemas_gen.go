@@ -197,8 +197,10 @@ type CreateNote struct {
 	// Nonce(number used once) - одноразовое случайное число, которое
 	// идет вместе с AES-256-GCM (12 байт).
 	Nonce []byte `json:"nonce"`
-	// Зашифрованный текст: AES-256-GCM от секрета и текстовой
-	// метаинформации. Сервер не расшифровывает. Макс. размер
+	// Незашифрованные метаданные (название, тег, сайт).
+	Meta OptString `json:"meta"`
+	// Зашифрованный секрет (AES-256-GCM). Метаданные в `meta`, не
+	// здесь. Сервер не расшифровывает. Макс. размер
 	// открытого текста — 1MiB.
 	Ciphertext []byte `json:"ciphertext"`
 	// SHA-256 шифротекста. Если передан — сервер сверяет.
@@ -218,6 +220,11 @@ func (s *CreateNote) GetVersion() int64 {
 // GetNonce returns the value of Nonce.
 func (s *CreateNote) GetNonce() []byte {
 	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *CreateNote) GetMeta() OptString {
+	return s.Meta
 }
 
 // GetCiphertext returns the value of Ciphertext.
@@ -243,6 +250,11 @@ func (s *CreateNote) SetVersion(val int64) {
 // SetNonce sets the value of Nonce.
 func (s *CreateNote) SetNonce(val []byte) {
 	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *CreateNote) SetMeta(val OptString) {
+	s.Meta = val
 }
 
 // SetCiphertext sets the value of Ciphertext.
@@ -392,7 +404,11 @@ type Note struct {
 	// Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
 	// Сервер хранит как есть, не интерпретирует.
 	Nonce []byte `json:"nonce"`
-	// Шифротекст заметки (секрет и метаинформация). Сервер
+	// Незашифрованные метаданные: название, тег, привязка к
+	// сайту. Сервер хранит как есть и может фильтровать без
+	// расшифровки секрета.
+	Meta OptString `json:"meta"`
+	// Шифротекст секрета (текст, пара логин/пароль). Сервер
 	// не расшифровывает.
 	Ciphertext []byte `json:"ciphertext"`
 	// SHA-256 шифротекста. Опционально; если был при
@@ -425,6 +441,11 @@ func (s *Note) GetVersion() int64 {
 // GetNonce returns the value of Nonce.
 func (s *Note) GetNonce() []byte {
 	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *Note) GetMeta() OptString {
+	return s.Meta
 }
 
 // GetCiphertext returns the value of Ciphertext.
@@ -470,6 +491,11 @@ func (s *Note) SetVersion(val int64) {
 // SetNonce sets the value of Nonce.
 func (s *Note) SetNonce(val []byte) {
 	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *Note) SetMeta(val OptString) {
+	s.Meta = val
 }
 
 // SetCiphertext sets the value of Ciphertext.
@@ -801,8 +827,10 @@ type UpdateNote struct {
 	// Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
 	// При каждом изменении клиент генерирует новый nonce.
 	Nonce []byte `json:"nonce"`
-	// Новый шифротекст: AES-256-GCM от секрета и текстовой
-	// метаинформации. Сервер не расшифровывает. Макс. размер
+	// Незашифрованные метаданные (название, тег, сайт).
+	Meta OptString `json:"meta"`
+	// Новый шифротекст секрета (AES-256-GCM). Метаданные в `meta`, не
+	// здесь. Сервер не расшифровывает. Макс. размер
 	// открытого текста — 1 MiB.
 	Ciphertext []byte `json:"ciphertext"`
 	// SHA-256 нового шифротекста. Если передан — сервер
@@ -818,6 +846,11 @@ func (s *UpdateNote) GetVersion() int64 {
 // GetNonce returns the value of Nonce.
 func (s *UpdateNote) GetNonce() []byte {
 	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *UpdateNote) GetMeta() OptString {
+	return s.Meta
 }
 
 // GetCiphertext returns the value of Ciphertext.
@@ -838,6 +871,11 @@ func (s *UpdateNote) SetVersion(val int64) {
 // SetNonce sets the value of Nonce.
 func (s *UpdateNote) SetNonce(val []byte) {
 	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *UpdateNote) SetMeta(val OptString) {
+	s.Meta = val
 }
 
 // SetCiphertext sets the value of Ciphertext.

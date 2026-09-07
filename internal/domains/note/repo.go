@@ -22,6 +22,7 @@ var noteCols = []any{
 	goqu.C("user_id"),
 	goqu.C("version"),
 	goqu.C("nonce"),
+	goqu.C("meta"),
 	goqu.C("ciphertext"),
 	goqu.C("ciphertext_sha256"),
 	goqu.C("deleted_at"),
@@ -52,6 +53,7 @@ func (r *NotesRepo) Create(ctx context.Context, n Note) (Note, error) {
 			"user_id":           n.UserID,
 			"version":           n.Version,
 			"nonce":             n.Nonce,
+			"meta":              n.Meta,
 			"ciphertext":        n.Ciphertext,
 			"ciphertext_sha256": n.CiphertextSHA256,
 		}).
@@ -79,6 +81,7 @@ func (r *NotesRepo) Update(ctx context.Context, n Note) (Note, error) {
 		Set(goqu.Record{
 			"version":           goqu.L("version + 1"),
 			"nonce":             n.Nonce,
+			"meta":              n.Meta,
 			"ciphertext":        n.Ciphertext,
 			"ciphertext_sha256": n.CiphertextSHA256,
 			"updated_at":        goqu.L("now()"),
