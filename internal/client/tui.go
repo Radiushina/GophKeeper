@@ -29,6 +29,12 @@ const (
 	tuiNoteDelete
 )
 
+const (
+	noteTextPlaceholder = "secret (encrypted)"
+	noteMetaPlaceholder = "title, tag or site (plaintext)"
+	noteMetaHint        = "Meta: title, tag or site (not encrypted)"
+)
+
 type tuiNote struct {
 	id      uuid.UUID
 	version int64
@@ -91,9 +97,9 @@ func newTUIModel(ctx context.Context, app *App) tuiModel {
 	password.Width = 32
 
 	extra := textinput.New()
-	extra.Placeholder = "meta (optional)"
+	extra.Placeholder = noteMetaPlaceholder
 	extra.CharLimit = 256
-	extra.Width = 32
+	extra.Width = 48
 
 	km := table.DefaultKeyMap()
 	km.HalfPageDown = key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "½ page down"))
@@ -358,8 +364,8 @@ func (m tuiModel) openForm(screen tuiScreen) (tea.Model, tea.Cmd) {
 	}
 	switch screen {
 	case tuiNoteAdd, tuiNoteEdit:
-		m.inputs[0].Placeholder = "note text"
-		m.inputs[1].Placeholder = "meta (optional)"
+		m.inputs[0].Placeholder = noteTextPlaceholder
+		m.inputs[1].Placeholder = noteMetaPlaceholder
 	default:
 		m.inputs[0].Placeholder = "login"
 		m.inputs[1].Placeholder = "password"
@@ -707,6 +713,10 @@ func (m tuiModel) formBody() string {
 	}
 	var b strings.Builder
 	b.WriteString(heading)
+	if m.screen == tuiNoteAdd || m.screen == tuiNoteEdit {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(noteMetaHint))
+	}
 	if m.selected.id != uuid.Nil && (m.screen == tuiNoteEdit || m.screen == tuiNoteDelete) {
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(

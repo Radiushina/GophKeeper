@@ -141,7 +141,7 @@ func parseNoteAddFlags(app *App, args []string) (text, meta string, err error) {
 	fs := flag.NewFlagSet("note-add", flag.ContinueOnError)
 	fs.SetOutput(app.logWriter())
 	fs.StringVar(&text, "text", "", "note text")
-	fs.StringVar(&meta, "meta", "", "optional metadata")
+	fs.StringVar(&meta, "meta", "", "title/tag/site; not a secret")
 	if err := fs.Parse(args); err != nil {
 		return "", "", err
 	}
@@ -170,7 +170,7 @@ func parseNoteUpdateFlags(app *App, args []string) (noteUpdateArgs, error) {
 	fs.StringVar(&rawID, "id", "", "note id")
 	fs.Int64Var(&version, "version", 0, "current server version; 0 means fetch first")
 	fs.StringVar(&text, "text", "", "note text")
-	fs.StringVar(&meta, "meta", "", "optional metadata")
+	fs.StringVar(&meta, "meta", "", "title/tag/site; not a secret")
 	if err := fs.Parse(args); err != nil {
 		return noteUpdateArgs{}, err
 	}
