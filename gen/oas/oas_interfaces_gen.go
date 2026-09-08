@@ -9,6 +9,26 @@ type AuthRegisterRes interface {
 	authRegisterRes()
 }
 
+type FileCreateRes interface {
+	fileCreateRes()
+}
+
+type FileDeleteRes interface {
+	fileDeleteRes()
+}
+
+type FileGetRes interface {
+	fileGetRes()
+}
+
+type FileUpdateRes interface {
+	fileUpdateRes()
+}
+
+type ListFilesRes interface {
+	listFilesRes()
+}
+
 type ListNotesRes interface {
 	listNotesRes()
 }

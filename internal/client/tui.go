@@ -27,12 +27,26 @@ const (
 	tuiNoteAdd
 	tuiNoteEdit
 	tuiNoteDelete
+	tuiFileAdd
+	tuiFileEdit
+	tuiFileDelete
+	tuiFileGet
 )
 
 const (
 	noteTextPlaceholder = "secret (encrypted)"
 	noteMetaPlaceholder = "title, tag or site (plaintext)"
 	noteMetaHint        = "Meta: title, tag or site (not encrypted)"
+	filePathPlaceholder = "path to local file"
+	fileDestPlaceholder = "path to save"
+	fileMetaHint        = "Meta: title or tag (not encrypted)"
+)
+
+type listKind int
+
+const (
+	listNotes listKind = iota
+	listFiles
 )
 
 type tuiNote struct {
@@ -40,6 +54,14 @@ type tuiNote struct {
 	version int64
 	text    string
 	meta    string
+}
+
+type tuiFile struct {
+	id      uuid.UUID
+	version int64
+	name    string
+	meta    string
+	data    []byte
 }
 
 type authResultMsg struct {
@@ -55,6 +77,14 @@ type notesResultMsg struct {
 	show   bool
 }
 
+type filesResultMsg struct {
+	items  []tuiFile
+	status string
+	err    error
+	stay   bool
+	show   bool
+}
+
 type tuiModel struct {
 	ctx      context.Context
 	app      *App
@@ -62,12 +92,15 @@ type tuiModel struct {
 	inputs   []textinput.Model
 	table    table.Model
 	items    []tuiNote
+	files    []tuiFile
 	selected tuiNote
+	selFile  tuiFile
 	focus    int
 	busy     bool
 	status   string
 	err      string
 	listOpen bool
+	listKind listKind
 	width    int
 	height   int
 }
@@ -148,6 +181,20 @@ func noteColumns(inner int) []table.Column {
 	}
 }
 
+func fileColumns(inner int) []table.Column {
+	budget := max(20, inner-8)
+	idW, verW := 8, 3
+	rest := max(6, budget-idW-verW)
+	nameW := max(4, rest*2/3)
+	metaW := max(3, rest-nameW)
+	return []table.Column{
+		{Title: "ID", Width: idW},
+		{Title: "Name", Width: nameW},
+		{Title: "Meta", Width: metaW},
+		{Title: "Version", Width: verW},
+	}
+}
+
 func (m tuiModel) Init() tea.Cmd {
 	return textinput.Blink
 }
@@ -157,7 +204,11 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		inner := contentWidth(m.width)
-		m.table.SetColumns(noteColumns(inner))
+		if m.listKind == listFiles {
+			m.table.SetColumns(fileColumns(inner))
+		} else {
+			m.table.SetColumns(noteColumns(inner))
+		}
 		m.table.SetWidth(inner)
 		m.table.SetHeight(min(12, max(5, m.height-16)))
 		return m, nil
@@ -172,6 +223,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = tuiHome
 		m.listOpen = false
 		m.items = nil
+		m.files = nil
 		m.table.SetRows(nil)
 		return m.blurInputs(), nil
 	case notesResultMsg:
@@ -184,6 +236,27 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.applyNotes(msg.items)
 		if msg.show {
 			m.listOpen = true
+			m.listKind = listNotes
+		}
+		if msg.status != "" {
+			m.status = msg.status
+		}
+		if msg.stay {
+			return m, nil
+		}
+		m.screen = tuiHome
+		return m.blurInputs(), nil
+	case filesResultMsg:
+		m.busy = false
+		if msg.err != nil {
+			m.err = msg.err.Error()
+			return m, nil
+		}
+		m.err = ""
+		m = m.applyFiles(msg.items)
+		if msg.show {
+			m.listOpen = true
+			m.listKind = listFiles
 		}
 		if msg.status != "" {
 			m.status = msg.status
@@ -224,6 +297,8 @@ func shortcutKey(msg tea.KeyMsg) string {
 		return "l"
 	case "т":
 		return "n"
+	case "а":
+		return "f"
 	case "ф":
 		return "a"
 	case "у":
@@ -232,6 +307,8 @@ func shortcutKey(msg tea.KeyMsg) string {
 		return "d"
 	case "м":
 		return "v"
+	case "ы":
+		return "s"
 	default:
 		return key
 	}
@@ -260,21 +337,42 @@ func (m tuiModel) updateHome(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 		m.busy = true
 		m.err = ""
 		return m, m.loadNotes("", false, true)
+	case "f":
+		if !m.signedIn() {
+			return m, nil
+		}
+		m.busy = true
+		m.err = ""
+		return m, m.loadFiles("", false, true)
 	case "a":
 		if !m.signedIn() {
 			return m, nil
+		}
+		if m.listOpen && m.listKind == listFiles {
+			return m.openForm(tuiFileAdd)
 		}
 		return m.openForm(tuiNoteAdd)
 	case "e", "enter":
 		if !m.signedIn() {
 			return m, nil
 		}
+		if m.listOpen && m.listKind == listFiles {
+			return m.openSelectedFile(tuiFileEdit)
+		}
 		return m.openSelected(tuiNoteEdit)
 	case "d":
 		if !m.signedIn() {
 			return m, nil
 		}
+		if m.listOpen && m.listKind == listFiles {
+			return m.openSelectedFile(tuiFileDelete)
+		}
 		return m.openSelected(tuiNoteDelete)
+	case "s":
+		if !m.signedIn() || !(m.listOpen && m.listKind == listFiles) {
+			return m, nil
+		}
+		return m.openSelectedFile(tuiFileGet)
 	case "v":
 		var b strings.Builder
 		buildinfo.Fprint(&b)
@@ -314,6 +412,32 @@ func (m tuiModel) openSelected(screen tuiScreen) (tea.Model, tea.Cmd) {
 	return got, cmd
 }
 
+func (m tuiModel) selectedFile() (tuiFile, bool) {
+	i := m.table.Cursor()
+	if i < 0 || i >= len(m.files) {
+		return tuiFile{}, false
+	}
+	return m.files[i], true
+}
+
+func (m tuiModel) openSelectedFile(screen tuiScreen) (tea.Model, tea.Cmd) {
+	n, ok := m.selectedFile()
+	if !ok {
+		m.err = "select a file"
+		return m, nil
+	}
+	next, cmd := m.openForm(screen)
+	got := next.(tuiModel)
+	got.selFile = n
+	if screen == tuiFileEdit {
+		got.inputs[1].SetValue(n.meta)
+	}
+	if screen == tuiFileGet {
+		got.inputs[0].SetValue(n.name)
+	}
+	return got, cmd
+}
+
 func (m tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyCtrlC:
@@ -344,9 +468,11 @@ func (m tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m tuiModel) fieldCount() int {
 	switch m.screen {
-	case tuiNoteDelete:
+	case tuiNoteDelete, tuiFileDelete:
 		return 0
-	case tuiNoteEdit, tuiNoteAdd, tuiLogin:
+	case tuiFileGet:
+		return 1
+	case tuiNoteEdit, tuiNoteAdd, tuiFileEdit, tuiFileAdd, tuiLogin:
 		return 2
 	default:
 		return 2
@@ -366,8 +492,16 @@ func (m tuiModel) openForm(screen tuiScreen) (tea.Model, tea.Cmd) {
 	case tuiNoteAdd, tuiNoteEdit:
 		m.inputs[0].Placeholder = noteTextPlaceholder
 		m.inputs[1].Placeholder = noteMetaPlaceholder
+	case tuiFileAdd, tuiFileEdit:
+		m.inputs[0].Placeholder = filePathPlaceholder
+		m.inputs[0].CharLimit = 4096
+		m.inputs[1].Placeholder = noteMetaPlaceholder
+	case tuiFileGet:
+		m.inputs[0].Placeholder = fileDestPlaceholder
+		m.inputs[0].CharLimit = 4096
 	default:
 		m.inputs[0].Placeholder = "login"
+		m.inputs[0].CharLimit = 64
 		m.inputs[1].Placeholder = "password"
 		m.inputs[1].EchoMode = textinput.EchoPassword
 		m.inputs[1].EchoCharacter = '•'
@@ -383,6 +517,14 @@ func (m tuiModel) submit() (tea.Model, tea.Cmd) {
 		return m.submitNoteEdit()
 	case tuiNoteDelete:
 		return m.submitNoteDelete()
+	case tuiFileAdd:
+		return m.submitFile()
+	case tuiFileEdit:
+		return m.submitFileEdit()
+	case tuiFileDelete:
+		return m.submitFileDelete()
+	case tuiFileGet:
+		return m.submitFileGet()
 	}
 	login := strings.TrimSpace(m.inputs[0].Value())
 	password := m.inputs[1].Value()
@@ -470,6 +612,104 @@ func (m tuiModel) submitNoteDelete() (tea.Model, tea.Cmd) {
 			return notesResultMsg{err: err}
 		}
 		return notesResultMsg{items: items, status: "note deleted", show: true}
+	}
+}
+
+func (m tuiModel) submitFile() (tea.Model, tea.Cmd) {
+	path := strings.TrimSpace(m.inputs[0].Value())
+	meta := m.inputs[1].Value()
+	if path == "" {
+		m.err = "path is required"
+		return m, nil
+	}
+	m.busy = true
+	m.err = ""
+	app := m.app
+	ctx := m.ctx
+	show := m.listOpen
+	return m, func() tea.Msg {
+		if err := writeFileAdd(ctx, app, path, meta); err != nil {
+			return filesResultMsg{err: err}
+		}
+		items, err := fetchTuiFiles(ctx, app)
+		if err != nil {
+			return filesResultMsg{err: err}
+		}
+		return filesResultMsg{items: items, status: "file saved", show: show}
+	}
+}
+
+func (m tuiModel) submitFileEdit() (tea.Model, tea.Cmd) {
+	if m.selFile.id == uuid.Nil {
+		m.err = "select a file"
+		return m, nil
+	}
+	path := strings.TrimSpace(m.inputs[0].Value())
+	meta := m.inputs[1].Value()
+	m.busy = true
+	m.err = ""
+	app := m.app
+	ctx := m.ctx
+	id := m.selFile.id
+	keep := FilePlain{Name: m.selFile.name, Data: m.selFile.data}
+	return m, func() tea.Msg {
+		if err := writeFileUpdate(ctx, app, id, path, meta, keep); err != nil {
+			return filesResultMsg{err: err}
+		}
+		items, err := fetchTuiFiles(ctx, app)
+		if err != nil {
+			return filesResultMsg{err: err}
+		}
+		return filesResultMsg{items: items, status: "file updated", show: true}
+	}
+}
+
+func (m tuiModel) submitFileDelete() (tea.Model, tea.Cmd) {
+	if m.selFile.id == uuid.Nil {
+		m.err = "select a file"
+		return m, nil
+	}
+	m.busy = true
+	m.err = ""
+	app := m.app
+	ctx := m.ctx
+	id := m.selFile.id
+	return m, func() tea.Msg {
+		if err := writeFileDelete(ctx, app, id); err != nil {
+			return filesResultMsg{err: err}
+		}
+		items, err := fetchTuiFiles(ctx, app)
+		if err != nil {
+			return filesResultMsg{err: err}
+		}
+		return filesResultMsg{items: items, status: "file deleted", show: true}
+	}
+}
+
+func (m tuiModel) submitFileGet() (tea.Model, tea.Cmd) {
+	if m.selFile.id == uuid.Nil {
+		m.err = "select a file"
+		return m, nil
+	}
+	dest := strings.TrimSpace(m.inputs[0].Value())
+	if dest == "" {
+		m.err = "path is required"
+		return m, nil
+	}
+	m.busy = true
+	m.err = ""
+	app := m.app
+	ctx := m.ctx
+	id := m.selFile.id
+	return m, func() tea.Msg {
+		if _, _, _, err := downloadFile(ctx, app, id, dest); err != nil {
+			return filesResultMsg{err: err}
+		}
+		items, err := fetchTuiFiles(ctx, app)
+		if err != nil {
+			return filesResultMsg{err: err}
+		}
+		return filesResultMsg{items: items, status: "file downloaded", show: true}
 	}
 }
 
@@ -566,6 +806,9 @@ func tuiNotesFromCache(app *App) ([]tuiNote, error) {
 
 func (m tuiModel) applyNotes(items []tuiNote) tuiModel {
 	m.items = items
+	m.listKind = listNotes
+	inner := contentWidth(m.width)
+	m.table.SetColumns(noteColumns(inner))
 	rows := make([]table.Row, 0, len(items))
 	for _, n := range items {
 		rows = append(rows, table.Row{shortID(n.id), n.text, n.meta, fmt.Sprintf("%d", n.version)})
@@ -573,6 +816,40 @@ func (m tuiModel) applyNotes(items []tuiNote) tuiModel {
 	m.table.SetRows(rows)
 	m.table.Focus()
 	return m
+}
+
+func (m tuiModel) applyFiles(items []tuiFile) tuiModel {
+	m.files = items
+	m.listKind = listFiles
+	inner := contentWidth(m.width)
+	m.table.SetColumns(fileColumns(inner))
+	rows := make([]table.Row, 0, len(items))
+	for _, n := range items {
+		rows = append(rows, table.Row{shortID(n.id), n.name, n.meta, fmt.Sprintf("%d", n.version)})
+	}
+	m.table.SetRows(rows)
+	m.table.Focus()
+	return m
+}
+
+func fetchTuiFiles(ctx context.Context, app *App) ([]tuiFile, error) {
+	res, err := app.Client.ListFiles(ctx, oas.ListFilesParams{})
+	if err != nil {
+		return nil, err
+	}
+	list, ok := res.(*oas.FileListRes)
+	if !ok {
+		return nil, fileMsg(res)
+	}
+	items := make([]tuiFile, 0, len(list.Items))
+	for i := range list.Items {
+		n := list.Items[i]
+		if n.DeletedAt.IsSet() {
+			continue
+		}
+		items = append(items, tuiFile{id: n.ID, version: n.Version, name: n.Name.Value, meta: n.Meta.Value})
+	}
+	return items, nil
 }
 
 func shortID(id uuid.UUID) string {
@@ -592,6 +869,18 @@ func (m tuiModel) loadNotes(status string, stay, show bool) tea.Cmd {
 			return notesResultMsg{err: err, stay: stay, show: show}
 		}
 		return notesResultMsg{items: items, status: status, stay: stay, show: show}
+	}
+}
+
+func (m tuiModel) loadFiles(status string, stay, show bool) tea.Cmd {
+	app := m.app
+	ctx := m.ctx
+	return func() tea.Msg {
+		items, err := fetchTuiFiles(ctx, app)
+		if err != nil {
+			return filesResultMsg{err: err, stay: stay, show: show}
+		}
+		return filesResultMsg{items: items, status: status, stay: stay, show: show}
 	}
 }
 
@@ -670,6 +959,12 @@ func (m tuiModel) homeBody() string {
 	if !m.listOpen {
 		return "Choose a command."
 	}
+	if m.listKind == listFiles {
+		if len(m.files) == 0 {
+			return "No files yet.\nPress a to add one."
+		}
+		return m.filesGrid()
+	}
 	if len(m.items) == 0 {
 		return "No notes yet.\nPress a to add one."
 	}
@@ -701,6 +996,31 @@ func (m tuiModel) notesGrid() string {
 	return t.String()
 }
 
+func (m tuiModel) filesGrid() string {
+	sel := m.table.Cursor()
+	t := lgtable.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))).
+		BorderRow(true).
+		BorderColumn(true).
+		Headers("ID", "Name", "Meta", "Ver").
+		Width(contentWidth(m.width)).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			s := lipgloss.NewStyle().Padding(0, 1)
+			if row == lgtable.HeaderRow {
+				return s.Bold(true).Foreground(lipgloss.Color("212"))
+			}
+			if row == sel {
+				return s.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("63"))
+			}
+			return s
+		})
+	for _, n := range m.files {
+		t.Row(shortID(n.id), n.name, n.meta, fmt.Sprintf("%d", n.version))
+	}
+	return t.String()
+}
+
 func (m tuiModel) formBody() string {
 	heading := "Login"
 	switch m.screen {
@@ -710,6 +1030,14 @@ func (m tuiModel) formBody() string {
 		heading = "Edit note"
 	case tuiNoteDelete:
 		heading = "Delete note"
+	case tuiFileAdd:
+		heading = "Add file"
+	case tuiFileEdit:
+		heading = "Edit file"
+	case tuiFileDelete:
+		heading = "Delete file"
+	case tuiFileGet:
+		heading = "Download file"
 	}
 	var b strings.Builder
 	b.WriteString(heading)
@@ -717,13 +1045,23 @@ func (m tuiModel) formBody() string {
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(noteMetaHint))
 	}
+	if m.screen == tuiFileAdd || m.screen == tuiFileEdit {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(fileMetaHint))
+	}
 	if m.selected.id != uuid.Nil && (m.screen == tuiNoteEdit || m.screen == tuiNoteDelete) {
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
 			fmt.Sprintf("%s  %s", shortID(m.selected.id), m.selected.text),
 		))
 	}
-	if m.screen == tuiNoteDelete && m.selected.id != uuid.Nil {
+	if m.selFile.id != uuid.Nil && (m.screen == tuiFileEdit || m.screen == tuiFileDelete || m.screen == tuiFileGet) {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+			fmt.Sprintf("%s  %s", shortID(m.selFile.id), m.selFile.name),
+		))
+	}
+	if (m.screen == tuiNoteDelete && m.selected.id != uuid.Nil) || (m.screen == tuiFileDelete && m.selFile.id != uuid.Nil) {
 		b.WriteString("\n\nenter confirm")
 		return b.String()
 	}
@@ -740,9 +1078,14 @@ func (m tuiModel) help() string {
 	if m.screen == tuiHome {
 		if m.signedIn() {
 			if m.listOpen {
-				return style.Render("↑↓ move   enter/e edit   d delete   a add   n refresh   esc back   q quit")
+				refresh := "n refresh"
+				if m.listKind == listFiles {
+					refresh = "f refresh"
+					return style.Render("↑↓ move   enter/e edit   s download   d delete   a add   " + refresh + "   esc back   q quit")
+				}
+				return style.Render("↑↓ move   enter/e edit   d delete   a add   " + refresh + "   esc back   q quit")
 			}
-			return style.Render("n notes   a add   v version   q quit")
+			return style.Render("n notes   f files   a add   v version   q quit")
 		}
 		return style.Render("l login   v version   q quit")
 	}

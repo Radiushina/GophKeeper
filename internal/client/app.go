@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Radiushina/GophKeeper/gen/filepb"
 	"github.com/Radiushina/GophKeeper/gen/oas"
 	"go.uber.org/zap"
 )
@@ -16,6 +17,7 @@ type App struct {
 	vaultKey     []byte
 	Server       string
 	Client       *oas.Client
+	Files        filepb.FileServiceClient
 	Log          *zap.Logger
 	CacheDir     string
 	ReadPassword func() ([]byte, error)
@@ -97,6 +99,7 @@ func rememberToken(a *App, token string) {
 }
 
 func (a *App) logAuth(session *oas.AuthUserResHeaders) {
+	// login only — never token, password, vault key, or ciphertext
 	a.logInfo("authenticated",
 		zap.String("user", session.Response.User.Login),
 	)

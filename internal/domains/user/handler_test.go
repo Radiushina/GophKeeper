@@ -12,6 +12,7 @@ import (
 
 	"github.com/Radiushina/GophKeeper/cmd/server/di/providers"
 	"github.com/Radiushina/GophKeeper/gen/oas"
+	"github.com/Radiushina/GophKeeper/internal/domains/file"
 	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 	"github.com/Radiushina/GophKeeper/internal/vault"
@@ -120,7 +121,7 @@ func startUserServer(t *testing.T) (*httptest.Server, vault.Material) {
 	t.Helper()
 	tokens := user.NewJWT("handler-secret", time.Hour)
 	svc := user.NewService(newMemRepo(), tokens, user.NewHasher())
-	h := providers.NewOASHandler(user.NewHandler(svc, nil), note.NewHandler(note.NewService(&noteMem{}), nil))
+	h := providers.NewOASHandler(user.NewHandler(svc, nil), note.NewHandler(note.NewService(&noteMem{}), nil), file.NewMemHandler())
 	srv, err := oas.NewServer(h, tokens)
 	require.NoError(t, err)
 	ts := httptest.NewServer(srv)

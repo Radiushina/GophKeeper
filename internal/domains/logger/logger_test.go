@@ -52,6 +52,7 @@ func TestLoggingMiddleware(t *testing.T) {
 			core, logs := observer.New(zap.InfoLevel)
 			h := LoggingMiddleware(zap.New(core), http.HandlerFunc(tc.handle))
 			req := httptest.NewRequest(tc.method, tc.url, nil)
+			req.Header.Set("Authorization", "Bearer super-secret-token")
 			rr := httptest.NewRecorder()
 			h.ServeHTTP(rr, req)
 
@@ -61,6 +62,9 @@ func TestLoggingMiddleware(t *testing.T) {
 
 			fields := map[string]any{}
 			for _, f := range entries[0].Context {
+				require.NotEqual(t, "authorization", f.Key)
+				require.NotContains(t, f.String, "super-secret-token")
+				require.NotContains(t, f.String, "Bearer ")
 				switch f.Key {
 				case "status", "response_size":
 					fields[f.Key] = int(f.Integer)

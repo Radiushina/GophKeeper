@@ -8,8 +8,48 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	FilesHandler
 	NotesHandler
 	UserHandler
+}
+
+// FilesHandler handles operations described by OpenAPI v3 specification.
+//
+// x-ogen-operation-group: Files
+type FilesHandler interface {
+	// FileCreate implements file-create operation.
+	//
+	// Создать бинарную запись.
+	//
+	// POST /api/v1/files
+	FileCreate(ctx context.Context, req *CreateFile) (FileCreateRes, error)
+	// FileDelete implements fileDelete operation.
+	//
+	// Удалить бинарную запись (tombstone).
+	//
+	// DELETE /api/v1/files/{id}
+	FileDelete(ctx context.Context, params FileDeleteParams) (FileDeleteRes, error)
+	// FileGet implements file-get operation.
+	//
+	// Бинарная запись владельца.
+	//
+	// GET /api/v1/files/{id}
+	FileGet(ctx context.Context, params FileGetParams) (FileGetRes, error)
+	// FileUpdate implements file-update operation.
+	//
+	// Обновить бинарную запись.
+	//
+	// PUT /api/v1/files/{id}
+	FileUpdate(ctx context.Context, req *UpdateFile, params FileUpdateParams) (FileUpdateRes, error)
+	// ListFiles implements list-files operation.
+	//
+	// Только объекты текущего пользователя. Если передан
+	// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+	// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+	// — все живые объекты (без tombstone).
+	//
+	// GET /api/v1/files
+	ListFiles(ctx context.Context, params ListFilesParams) (ListFilesRes, error)
 }
 
 // NotesHandler handles operations described by OpenAPI v3 specification.

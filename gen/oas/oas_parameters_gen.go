@@ -16,6 +16,267 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// FileDeleteParams is parameters of fileDelete operation.
+type FileDeleteParams struct {
+	ID uuid.UUID
+}
+
+func unpackFileDeleteParams(packed middleware.Parameters) (params FileDeleteParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeFileDeleteParams(args [1]string, argsEscaped bool, r *http.Request) (params FileDeleteParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// FileGetParams is parameters of file-get operation.
+type FileGetParams struct {
+	ID uuid.UUID
+}
+
+func unpackFileGetParams(packed middleware.Parameters) (params FileGetParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeFileGetParams(args [1]string, argsEscaped bool, r *http.Request) (params FileGetParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// FileUpdateParams is parameters of file-update operation.
+type FileUpdateParams struct {
+	ID uuid.UUID
+}
+
+func unpackFileUpdateParams(packed middleware.Parameters) (params FileUpdateParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeFileUpdateParams(args [1]string, argsEscaped bool, r *http.Request) (params FileUpdateParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ListFilesParams is parameters of list-files operation.
+type ListFilesParams struct {
+	// Курсор синка. RFC3339. Пусто — все живые объекты (без
+	// tombstone).
+	Since OptDateTime `json:",omitempty,omitzero"`
+}
+
+func unpackListFilesParams(packed middleware.Parameters) (params ListFilesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "since",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Since = v.(OptDateTime)
+		}
+	}
+	return params
+}
+
+func decodeListFilesParams(args [0]string, argsEscaped bool, r *http.Request) (params ListFilesParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: since.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "since",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSinceVal time.Time
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToDateTime(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSinceVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Since.SetTo(paramsDotSinceVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "since",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ListNotesParams is parameters of list-notes operation.
 type ListNotesParams struct {
 	// Курсор синка. RFC3339. Пусто — все живые объекты (без

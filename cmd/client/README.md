@@ -48,6 +48,15 @@ note-update -id 550e8400-e29b-41d4-a716-446655440000 -text "changed"
 note-delete -id 550e8400-e29b-41d4-a716-446655440000
 ```
 
+Файлы идут по gRPC стримом (чанки 1 MiB, потолок 512 MiB). В TUI: `f` — список, `a`/`e`/`d` как у notes, `s` — скачать на диск:
+```text
+file-add -path ./secret.bin -meta "work"
+file-list
+file-get -id 550e8400-e29b-41d4-a716-446655440000 -out ./secret.bin
+file-update -id 550e8400-e29b-41d4-a716-446655440000 -path ./secret.bin
+file-delete -id 550e8400-e29b-41d4-a716-446655440000
+```
+
 Версия и дата сборки бинарника:
 
 ```text

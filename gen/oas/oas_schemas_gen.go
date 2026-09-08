@@ -188,6 +188,84 @@ func (s *BearerAuth) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Ref: #/CreateFile
+type CreateFile struct {
+	// Идентификатор.
+	ID uuid.UUID `json:"id"`
+	// При создании — `1`. Несовпадение — 409.
+	Version int64 `json:"version"`
+	// Nonce AES-256-GCM (12 байт).
+	Nonce []byte `json:"nonce"`
+	// Незашифрованные метаданные (название, тег).
+	Meta OptString `json:"meta"`
+	// Зашифрованный файл (AES-256-GCM). Метаданные в `meta`, не здесь.
+	// Сервер не расшифровывает. Макс. размер открытого
+	// текста — 1MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Если передан — сервер сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetID returns the value of ID.
+func (s *CreateFile) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetVersion returns the value of Version.
+func (s *CreateFile) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *CreateFile) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *CreateFile) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *CreateFile) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *CreateFile) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetID sets the value of ID.
+func (s *CreateFile) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CreateFile) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *CreateFile) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *CreateFile) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *CreateFile) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *CreateFile) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
 // Ref: #/CreateNote
 type CreateNote struct {
 	// Идентификатор.
@@ -266,6 +344,268 @@ func (s *CreateNote) SetCiphertext(val []byte) {
 func (s *CreateNote) SetCiphertextSHA256(val []byte) {
 	s.CiphertextSHA256 = val
 }
+
+// Произвольные бинарные данные владельца. Шифротекст на
+// сервере лежит в S3.
+// Ref: #/File
+type File struct {
+	// Идентификатор записи. Задаёт клиент при создании.
+	ID uuid.UUID `json:"id"`
+	// Тип записи. Всегда `file`.
+	Kind FileKind `json:"kind"`
+	// Версия записи для оптимистичной блокировки и синка.
+	Version int64 `json:"version"`
+	// Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
+	// Сервер хранит как есть, не интерпретирует.
+	Nonce []byte `json:"nonce"`
+	// Имя файла (открытый текст). Нужно для списка без
+	// скачивания тела.
+	Name OptString `json:"name"`
+	// Незашифрованные метаданные: название, тег,
+	// принадлежность. Сервер хранит как есть и может
+	// фильтровать без расшифровки секрета.
+	Meta OptString `json:"meta"`
+	// Шифротекст файла. Сервер не расшифровывает; тело
+	// хранит в S3.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Опционально; если был при
+	// создании/обновлении — отдаётся обратно.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+	// Tombstone для синка на другие устройства. Заполнено только
+	// у удалённых записей.
+	DeletedAt OptDateTime `json:"deleted_at"`
+	// Время создания записи на сервере (RFC3339).
+	CreatedAt time.Time `json:"created_at"`
+	// Время последнего изменения на сервере (RFC3339).
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetID returns the value of ID.
+func (s *File) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *File) GetKind() FileKind {
+	return s.Kind
+}
+
+// GetVersion returns the value of Version.
+func (s *File) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *File) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetName returns the value of Name.
+func (s *File) GetName() OptString {
+	return s.Name
+}
+
+// GetMeta returns the value of Meta.
+func (s *File) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *File) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *File) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *File) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *File) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *File) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *File) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *File) SetKind(val FileKind) {
+	s.Kind = val
+}
+
+// SetVersion sets the value of Version.
+func (s *File) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *File) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetName sets the value of Name.
+func (s *File) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *File) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *File) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *File) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *File) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *File) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *File) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*File) fileCreateRes() {}
+func (*File) fileDeleteRes() {}
+func (*File) fileGetRes()    {}
+func (*File) fileUpdateRes() {}
+
+type FileCreateBadRequest UnsuccessfulResponse
+
+func (*FileCreateBadRequest) fileCreateRes() {}
+
+type FileCreateConflict UnsuccessfulResponse
+
+func (*FileCreateConflict) fileCreateRes() {}
+
+type FileCreateInternalServerError UnsuccessfulResponse
+
+func (*FileCreateInternalServerError) fileCreateRes() {}
+
+type FileCreateUnauthorized UnsuccessfulResponse
+
+func (*FileCreateUnauthorized) fileCreateRes() {}
+
+type FileDeleteInternalServerError UnsuccessfulResponse
+
+func (*FileDeleteInternalServerError) fileDeleteRes() {}
+
+type FileDeleteNotFound UnsuccessfulResponse
+
+func (*FileDeleteNotFound) fileDeleteRes() {}
+
+type FileDeleteUnauthorized UnsuccessfulResponse
+
+func (*FileDeleteUnauthorized) fileDeleteRes() {}
+
+type FileGetInternalServerError UnsuccessfulResponse
+
+func (*FileGetInternalServerError) fileGetRes() {}
+
+type FileGetNotFound UnsuccessfulResponse
+
+func (*FileGetNotFound) fileGetRes() {}
+
+type FileGetUnauthorized UnsuccessfulResponse
+
+func (*FileGetUnauthorized) fileGetRes() {}
+
+// Тип записи. Всегда `file`.
+type FileKind string
+
+const (
+	FileKindFile FileKind = "file"
+)
+
+// AllValues returns all FileKind values.
+func (FileKind) AllValues() []FileKind {
+	return []FileKind{
+		FileKindFile,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FileKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FileKindFile:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FileKind) UnmarshalText(data []byte) error {
+	switch FileKind(data) {
+	case FileKindFile:
+		*s = FileKindFile
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/FileListRes
+type FileListRes struct {
+	Items []File `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *FileListRes) GetItems() []File {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *FileListRes) SetItems(val []File) {
+	s.Items = val
+}
+
+func (*FileListRes) listFilesRes() {}
+
+type FileUpdateBadRequest UnsuccessfulResponse
+
+func (*FileUpdateBadRequest) fileUpdateRes() {}
+
+type FileUpdateConflict UnsuccessfulResponse
+
+func (*FileUpdateConflict) fileUpdateRes() {}
+
+type FileUpdateInternalServerError UnsuccessfulResponse
+
+func (*FileUpdateInternalServerError) fileUpdateRes() {}
+
+type FileUpdateNotFound UnsuccessfulResponse
+
+func (*FileUpdateNotFound) fileUpdateRes() {}
+
+type FileUpdateUnauthorized UnsuccessfulResponse
+
+func (*FileUpdateUnauthorized) fileUpdateRes() {}
 
 // Публичные параметры Argon2id. Сервер задаёт политику и
 // хранит снимок на пользователя; клиент не выбирает
@@ -379,6 +719,18 @@ func (KdfParamsVersion) AllValues() []KdfParamsVersion {
 		KdfParamsVersion19,
 	}
 }
+
+type ListFilesBadRequest UnsuccessfulResponse
+
+func (*ListFilesBadRequest) listFilesRes() {}
+
+type ListFilesInternalServerError UnsuccessfulResponse
+
+func (*ListFilesInternalServerError) listFilesRes() {}
+
+type ListFilesUnauthorized UnsuccessfulResponse
+
+func (*ListFilesUnauthorized) listFilesRes() {}
 
 type ListNotesBadRequest UnsuccessfulResponse
 
@@ -815,6 +1167,75 @@ func (s *UnsuccessfulResponse) GetMsg() string {
 // SetMsg sets the value of Msg.
 func (s *UnsuccessfulResponse) SetMsg(val string) {
 	s.Msg = val
+}
+
+// Тело запроса на обновление бинарной записи.
+// Ref: #/UpdateFile
+type UpdateFile struct {
+	// Текущая версия записи на сервере (оптимистичная
+	// блокировка). Несовпадение — 409. После успеха сервер
+	// увеличивает версию на 1.
+	Version int64 `json:"version"`
+	// Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
+	Nonce []byte `json:"nonce"`
+	// Незашифрованные метаданные (название, тег).
+	Meta OptString `json:"meta"`
+	// Новый шифротекст файла (AES-256-GCM). Сервер не
+	// расшифровывает. Макс. размер открытого текста — 1 MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 нового шифротекста. Если передан — сервер
+	// сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateFile) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *UpdateFile) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *UpdateFile) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *UpdateFile) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *UpdateFile) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateFile) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *UpdateFile) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *UpdateFile) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *UpdateFile) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *UpdateFile) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
 }
 
 // Тело запроса на обновление текстовой записи.

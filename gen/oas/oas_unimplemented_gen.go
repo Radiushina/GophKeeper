@@ -31,6 +31,54 @@ func (UnimplementedHandler) AuthRegister(ctx context.Context, req *RegisterReq) 
 	return r, ht.ErrNotImplemented
 }
 
+// FileCreate implements file-create operation.
+//
+// Создать бинарную запись.
+//
+// POST /api/v1/files
+func (UnimplementedHandler) FileCreate(ctx context.Context, req *CreateFile) (r FileCreateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FileDelete implements fileDelete operation.
+//
+// Удалить бинарную запись (tombstone).
+//
+// DELETE /api/v1/files/{id}
+func (UnimplementedHandler) FileDelete(ctx context.Context, params FileDeleteParams) (r FileDeleteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FileGet implements file-get operation.
+//
+// Бинарная запись владельца.
+//
+// GET /api/v1/files/{id}
+func (UnimplementedHandler) FileGet(ctx context.Context, params FileGetParams) (r FileGetRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FileUpdate implements file-update operation.
+//
+// Обновить бинарную запись.
+//
+// PUT /api/v1/files/{id}
+func (UnimplementedHandler) FileUpdate(ctx context.Context, req *UpdateFile, params FileUpdateParams) (r FileUpdateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListFiles implements list-files operation.
+//
+// Только объекты текущего пользователя. Если передан
+// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+// — все живые объекты (без tombstone).
+//
+// GET /api/v1/files
+func (UnimplementedHandler) ListFiles(ctx context.Context, params ListFilesParams) (r ListFilesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListNotes implements list-notes operation.
 //
 // Только объекты текущего пользователя. Если передан

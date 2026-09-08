@@ -20,6 +20,15 @@ var (
 		"GET":    "Authorization",
 		"PUT":    "Authorization,Content-Type",
 	}
+	rn8AllowedHeaders = map[string]string{
+		"GET":  "Authorization",
+		"POST": "Authorization,Content-Type",
+	}
+	rn10AllowedHeaders = map[string]string{
+		"DELETE": "Authorization",
+		"GET":    "Authorization",
+		"PUT":    "Authorization,Content-Type",
+	}
 	rn1AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -79,6 +88,78 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
+			case 'f': // Prefix: "files"
+
+				if l := len("files"); len(elem) >= l && elem[0:l] == "files" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					switch r.Method {
+					case "GET":
+						s.handleListFilesRequest([0]string{}, elemIsEscaped, w, r)
+					case "POST":
+						s.handleFileCreateRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "GET,POST",
+							allowedHeaders: rn5AllowedHeaders,
+							acceptPost:     "application/json",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleFileDeleteRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "GET":
+							s.handleFileGetRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "PUT":
+							s.handleFileUpdateRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "DELETE,GET,PUT",
+								allowedHeaders: rn7AllowedHeaders,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				}
+
 			case 'n': // Prefix: "notes"
 
 				if l := len("notes"); len(elem) >= l && elem[0:l] == "notes" {
@@ -96,7 +177,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET,POST",
-							allowedHeaders: rn5AllowedHeaders,
+							allowedHeaders: rn8AllowedHeaders,
 							acceptPost:     "application/json",
 							acceptPatch:    "",
 						})
@@ -140,7 +221,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "DELETE,GET,PUT",
-								allowedHeaders: rn7AllowedHeaders,
+								allowedHeaders: rn10AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -315,6 +396,93 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
+			case 'f': // Prefix: "files"
+
+				if l := len("files"); len(elem) >= l && elem[0:l] == "files" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					switch method {
+					case "GET":
+						r.name = ListFilesOperation
+						r.summary = "Список бинарных записей владельца (UI и офлайн-синк)"
+						r.operationID = "list-files"
+						r.operationGroup = "Files"
+						r.pathPattern = "/api/v1/files"
+						r.args = args
+						r.count = 0
+						return r, true
+					case "POST":
+						r.name = FileCreateOperation
+						r.summary = "Создать бинарную запись"
+						r.operationID = "file-create"
+						r.operationGroup = "Files"
+						r.pathPattern = "/api/v1/files"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "id"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = FileDeleteOperation
+							r.summary = "Удалить бинарную запись (tombstone)"
+							r.operationID = "fileDelete"
+							r.operationGroup = "Files"
+							r.pathPattern = "/api/v1/files/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "GET":
+							r.name = FileGetOperation
+							r.summary = "Бинарная запись владельца"
+							r.operationID = "file-get"
+							r.operationGroup = "Files"
+							r.pathPattern = "/api/v1/files/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "PUT":
+							r.name = FileUpdateOperation
+							r.summary = "Обновить бинарную запись"
+							r.operationID = "file-update"
+							r.operationGroup = "Files"
+							r.pathPattern = "/api/v1/files/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+				}
+
 			case 'n': // Prefix: "notes"
 
 				if l := len("notes"); len(elem) >= l && elem[0:l] == "notes" {

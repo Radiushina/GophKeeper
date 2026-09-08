@@ -8,6 +8,11 @@ type OperationName = string
 const (
 	AuthLoginOperation    OperationName = "AuthLogin"
 	AuthRegisterOperation OperationName = "AuthRegister"
+	FileCreateOperation   OperationName = "FileCreate"
+	FileDeleteOperation   OperationName = "FileDelete"
+	FileGetOperation      OperationName = "FileGet"
+	FileUpdateOperation   OperationName = "FileUpdate"
+	ListFilesOperation    OperationName = "ListFiles"
 	ListNotesOperation    OperationName = "ListNotes"
 	NoteCreateOperation   OperationName = "NoteCreate"
 	NoteDeleteOperation   OperationName = "NoteDelete"

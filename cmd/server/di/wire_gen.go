@@ -9,6 +9,8 @@ package di
 import (
 	"context"
 	"github.com/Radiushina/GophKeeper/cmd/server/di/providers"
+	"github.com/Radiushina/GophKeeper/internal/blob"
+	"github.com/Radiushina/GophKeeper/internal/domains/file"
 	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 )
@@ -33,21 +35,31 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 		return nil, nil, err
 	}
 	usersRepo := user.NewRepository(pool)
-	notesRepo := note.NewRepository(pool)
 	jwt := providers.NewJWT(config)
 	hasher := user.NewHasher()
 	service := user.NewService(usersRepo, jwt, hasher)
-	noteService := note.NewService(notesRepo)
 	handler := user.NewHandler(service, logger)
+	notesRepo := note.NewRepository(pool)
+	noteService := note.NewService(notesRepo)
 	noteHandler := note.NewHandler(noteService, logger)
-	oasHandler := providers.NewOASHandler(handler, noteHandler)
+	filesRepo := file.NewRepository(pool)
+	s3, err := blob.NewS3(ctx, config)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	fileService := file.NewService(filesRepo, s3)
+	fileHandler := file.NewHandler(fileService, logger)
+	oasHandler := providers.NewOASHandler(handler, noteHandler, fileHandler)
 	server, err := providers.NewHTTPServer(config, oasHandler, jwt, logger)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	servers := providers.NewServers(server, logger)
+	grpcListen := providers.NewGRPCServer(config, fileService, jwt, logger)
+	servers := providers.NewServers(server, grpcListen, logger)
 	app := &App{
 		cfg:    config,
 		server: servers,

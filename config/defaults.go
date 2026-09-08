@@ -8,10 +8,16 @@ func DefaultConfig() Config {
 			HTTP: HTTPServerConfig{
 				Address: ":8080",
 			},
+			GRPC: GRPCServerConfig{
+				Address: ":9091",
+			},
 		},
 		Client: ClientConfig{
 			HTTP: HTTPClientConfig{
 				Address: "http://localhost:8080",
+			},
+			GRPC: GRPCClientConfig{
+				Address: "localhost:9091",
 			},
 		},
 		Auth: AuthConfig{
@@ -19,6 +25,10 @@ func DefaultConfig() Config {
 		},
 		Log: LogConfig{
 			Level: "info",
+		},
+		S3: S3Config{
+			Region:    "us-east-1",
+			PathStyle: true,
 		},
 	}
 }

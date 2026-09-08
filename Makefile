@@ -11,6 +11,12 @@ api-build:
 ogen:
 	go tool ogen --config ogen.yml --target gen/oas -package oas --clean docs/openapi.yml
 
+proto:
+	PATH="$(shell go env GOPATH)/bin:$$PATH" protoc \
+		--go_out=. --go_opt=module=github.com/Radiushina/GophKeeper \
+		--go-grpc_out=. --go-grpc_opt=module=github.com/Radiushina/GophKeeper \
+		api/file/v1/file.proto
+
 wire:
 	go tool wire ./cmd/server/di ./cmd/client
 

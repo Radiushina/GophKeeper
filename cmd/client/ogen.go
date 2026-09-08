@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"github.com/Radiushina/GophKeeper/config"
+	"github.com/Radiushina/GophKeeper/gen/filepb"
 	"github.com/Radiushina/GophKeeper/gen/oas"
 	"github.com/Radiushina/GophKeeper/internal/client"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
@@ -32,6 +35,13 @@ func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
 		return nil, fmt.Errorf("oas client: %w", err)
 	}
 	app.Client = oasClient
+	if cfg.Client.GRPC.Address != "" {
+		conn, err := grpc.NewClient(cfg.Client.GRPC.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, fmt.Errorf("grpc files: %w", err)
+		}
+		app.Files = filepb.NewFileServiceClient(conn)
+	}
 	return app, nil
 }
 

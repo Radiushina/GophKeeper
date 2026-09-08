@@ -28,7 +28,7 @@ func Run(ctx context.Context, app *App, args []string) error {
 }
 
 func repl(ctx context.Context, app *App, in io.Reader, out io.Writer) error {
-	app.logInfo("GophKeeper. Commands: login, note-add, note-update, note-delete, note-get, note-list, tui, version, exit")
+	app.logInfo("GophKeeper. Commands: login, note-add, note-update, note-delete, note-get, note-list, file-add, file-update, file-delete, file-get, file-list, tui, version, exit")
 	sc := bufio.NewScanner(in)
 	for {
 		fmt.Fprint(out, "> ")
@@ -90,6 +90,32 @@ func execCommand(ctx context.Context, app *App, args []string) error {
 			return err
 		}
 		return NoteList(ctx, app, since)
+	case "file-add":
+		path, meta, err := parseFileAddFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return FileAdd(ctx, app, path, meta)
+	case "file-update":
+		upd, err := parseFileUpdateFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return FileUpdate(ctx, app, upd.id, upd.version, upd.path, upd.meta)
+	case "file-delete":
+		id, err := parseNoteIDFlags(app, "file-delete", args[1:])
+		if err != nil {
+			return err
+		}
+		return FileDelete(ctx, app, id)
+	case "file-get":
+		id, dest, err := parseFileGetFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return FileGet(ctx, app, id, dest)
+	case "file-list":
+		return FileList(ctx, app)
 	case "tui":
 		return RunTUI(ctx, app)
 	case "version":
@@ -215,6 +241,69 @@ func parseNoteListFlags(app *App, args []string) (*time.Time, error) {
 		return nil, fmt.Errorf("since must be RFC3339")
 	}
 	return &t, nil
+}
+
+func parseFileAddFlags(app *App, args []string) (path, meta string, err error) {
+	fs := flag.NewFlagSet("file-add", flag.ContinueOnError)
+	fs.SetOutput(app.logWriter())
+	fs.StringVar(&path, "path", "", "local file path")
+	fs.StringVar(&meta, "meta", "", "title/tag; not a secret")
+	if err := fs.Parse(args); err != nil {
+		return "", "", err
+	}
+	if path == "" {
+		return "", "", fmt.Errorf("path is required")
+	}
+	return path, meta, nil
+}
+
+type fileUpdateArgs struct {
+	id      uuid.UUID
+	version int64
+	path    string
+	meta    string
+}
+
+func parseFileUpdateFlags(app *App, args []string) (fileUpdateArgs, error) {
+	fs := flag.NewFlagSet("file-update", flag.ContinueOnError)
+	fs.SetOutput(app.logWriter())
+	var (
+		rawID   string
+		version int64
+		path    string
+		meta    string
+	)
+	fs.StringVar(&rawID, "id", "", "file id")
+	fs.Int64Var(&version, "version", 0, "current server version; 0 means fetch first")
+	fs.StringVar(&path, "path", "", "local file path")
+	fs.StringVar(&meta, "meta", "", "title/tag; not a secret")
+	if err := fs.Parse(args); err != nil {
+		return fileUpdateArgs{}, err
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fileUpdateArgs{}, fmt.Errorf("id is required")
+	}
+	if path == "" && meta == "" {
+		return fileUpdateArgs{}, fmt.Errorf("path or meta is required")
+	}
+	return fileUpdateArgs{id: id, version: version, path: path, meta: meta}, nil
+}
+
+func parseFileGetFlags(app *App, args []string) (uuid.UUID, string, error) {
+	fs := flag.NewFlagSet("file-get", flag.ContinueOnError)
+	fs.SetOutput(app.logWriter())
+	var rawID, dest string
+	fs.StringVar(&rawID, "id", "", "file id")
+	fs.StringVar(&dest, "out", "", "write decrypted bytes here")
+	if err := fs.Parse(args); err != nil {
+		return uuid.Nil, "", err
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("id is required")
+	}
+	return id, dest, nil
 }
 
 func isQuit(cmd string) bool {

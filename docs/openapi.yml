@@ -4,9 +4,8 @@ info:
   title: GophKeeper system API
   version: 0.1.0
   description: |
-    Документация клиент-серверного API GophKeeper: учётные записи и текстовые
-    приватные записи владельца (заметки, пары логин/пароль). Карты и двоичные
-    файлы в API не входят.
+    Документация клиент-серверного API GophKeeper: учётные записи, текстовые
+    записи и двоичные файлы владельца. Карты в API не входят.
 
     Секрет клиент шифрует до отправки (`ciphertext`). Метаданные (`meta`) —
     название, тег, сайт — сервер хранит открыто, чтобы искать без расшифровки.
@@ -232,9 +231,155 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /api/v1/files:
+    post:
+      x-ogen-operation-group: files
+      operationId: file-create
+      summary: Создать бинарную запись
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/file.yml#/CreateFile'
+      responses:
+        200:
+          description: Запись создана. Тело шифротекста сохранено в S3.
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      x-ogen-operation-group: files
+      operationId: list-files
+      summary: Список бинарных записей владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/files/{id}:
+    parameters:
+      - $ref: '#/components/parameters/FileID'
+    get:
+      x-ogen-operation-group: files
+      operationId: file-get
+      summary: Бинарная запись владельца
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      x-ogen-operation-group: files
+      operationId: file-update
+      summary: Обновить бинарную запись
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/file.yml#/UpdateFile'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      x-ogen-operation-group: files
+      operationId: fileDelete
+      summary: Удалить бинарную запись (tombstone)
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
 components:
   parameters:
     NoteID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FileID:
       name: id
       in: path
       required: true
@@ -346,6 +491,14 @@ components:
           type: array
           items:
             $ref: './common/note.yml#/Note'
+    FileListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: './common/file.yml#/File'
     UnsuccessfulResponse:
       type: object
       required: [ msg ]

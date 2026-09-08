@@ -12,6 +12,7 @@ import (
 
 	"github.com/Radiushina/GophKeeper/cmd/server/di/providers"
 	"github.com/Radiushina/GophKeeper/gen/oas"
+	"github.com/Radiushina/GophKeeper/internal/domains/file"
 	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 	"github.com/Radiushina/GophKeeper/internal/vault"
@@ -148,6 +149,7 @@ func startNoteServer(t *testing.T) (*httptest.Server, string) {
 	h := providers.NewOASHandler(
 		user.NewHandler(user.NewService(newUserMem(), tokens, user.NewHasher()), nil),
 		note.NewHandler(note.NewService(newMemNotes()), nil),
+		file.NewMemHandler(),
 	)
 	srv, err := oas.NewServer(h, tokens)
 	require.NoError(t, err)
