@@ -22,11 +22,26 @@ type ClientConfig struct {
 }
 
 type GRPCServerConfig struct {
-	Address string `koanf:"address" yaml:"address" env:"SERVER_GRPC_ADDRESS" flag:"server-grpc-address"`
+	Address string           `koanf:"address" yaml:"address" env:"SERVER_GRPC_ADDRESS" flag:"server-grpc-address"`
+	TLS     GRPCServerTLSCfg `koanf:"tls" yaml:"tls"`
 }
 
+// The server needs a cert and a key (to show its ID and prove ownership)
+type GRPCServerTLSCfg struct {
+	CertFile string `koanf:"cert_file" yaml:"cert_file" env:"SERVER_GRPC_TLS_CERT_FILE" flag:"server-grpc-tls-cert-file"`
+	KeyFile  string `koanf:"key_file" yaml:"key_file" env:"SERVER_GRPC_TLS_KEY_FILE" flag:"server-grpc-tls-key-file"`
+}
+
+// The client needs a CA (to verify the passport)
 type GRPCClientConfig struct {
-	Address string `koanf:"address" yaml:"address" env:"CLIENT_GRPC_ADDRESS" flag:"client-grpc-address"`
+	Address string           `koanf:"address" yaml:"address" env:"CLIENT_GRPC_ADDRESS" flag:"client-grpc-address"`
+	TLS     GRPCClientTLSCfg `koanf:"tls" yaml:"tls"`
+}
+
+// ServerName — the name in the certificate (localhost). This is required if the address is 127.0.0.1:9091 but the certificate specifies CN=localhost
+type GRPCClientTLSCfg struct {
+	CAFile     string `koanf:"ca_file" yaml:"ca_file" env:"CLIENT_GRPC_TLS_CA_FILE" flag:"client-grpc-tls-ca-file"`
+	ServerName string `koanf:"server_name" yaml:"server_name" env:"CLIENT_GRPC_TLS_SERVER_NAME" flag:"client-grpc-tls-server-name"`
 }
 
 type HTTPServerConfig struct {

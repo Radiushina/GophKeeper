@@ -10,6 +10,10 @@ func DefaultConfig() Config {
 			},
 			GRPC: GRPCServerConfig{
 				Address: ":9091",
+				TLS: GRPCServerTLSCfg{
+					CertFile: "certs/server.crt",
+					KeyFile:  "certs/server.key",
+				},
 			},
 		},
 		Client: ClientConfig{
@@ -18,6 +22,10 @@ func DefaultConfig() Config {
 			},
 			GRPC: GRPCClientConfig{
 				Address: "localhost:9091",
+				TLS: GRPCClientTLSCfg{
+					CAFile:     "certs/ca.crt",
+					ServerName: "localhost",
+				},
 			},
 		},
 		Auth: AuthConfig{

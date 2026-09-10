@@ -58,7 +58,12 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	grpcListen := providers.NewGRPCServer(config, fileService, jwt, logger)
+	grpcListen, err := providers.NewGRPCServer(config, fileService, jwt, logger)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
 	servers := providers.NewServers(server, grpcListen, logger)
 	app := &App{
 		cfg:    config,

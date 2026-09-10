@@ -3,11 +3,17 @@ server:
     address: ":8080"
   grpc:
     address: ":9091"
+    tls:
+      cert_file: "certs/server.crt"
+      key_file: "certs/server.key"
 client:
   http:
     address: "http://localhost:8080"
   grpc:
     address: "localhost:9091"
+    tls:
+      ca_file: "certs/ca.crt"
+      server_name: "localhost"
 database:
   dsn: ""
 auth:

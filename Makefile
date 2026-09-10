@@ -42,3 +42,28 @@ build-client:
 
 run-client:
 	go run ./cmd/client --server http://localhost:9090 -tui
+
+CERTS_DIR := certs
+
+certs: certs-ca certs-csr certs-server
+# создаёт корневой CA (ca.key + ca.crt)
+certs-ca:
+	mkdir -p $(CERTS_DIR)
+	openssl req -x509 -newkey rsa:2048 -nodes \
+		-keyout $(CERTS_DIR)/ca.key -out $(CERTS_DIR)/ca.crt -days 365 \
+		-subj "/CN=GophKeeper Dev CA"
+
+# создаёт ключ сервера и заявку (server.key + server.csr)
+certs-csr:
+	mkdir -p $(CERTS_DIR)
+	openssl req -newkey rsa:2048 -nodes \
+		-keyout $(CERTS_DIR)/server.key -out $(CERTS_DIR)/server.csr \
+		-subj "/CN=localhost"
+
+# CA подписывает заявку → server.crt
+certs-server:
+	mkdir -p $(CERTS_DIR)
+	printf "subjectAltName=DNS:localhost,IP:127.0.0.1\n" > $(CERTS_DIR)/san.cnf
+	openssl x509 -req -in $(CERTS_DIR)/server.csr -CA $(CERTS_DIR)/ca.crt -CAkey $(CERTS_DIR)/ca.key \
+		-CAcreateserial -out $(CERTS_DIR)/server.crt -days 365 \
+		-extfile $(CERTS_DIR)/san.cnf

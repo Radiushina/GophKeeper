@@ -36,6 +36,12 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.S3.SecretKey) == "" {
 		return errors.New("s3.secret_key is required")
 	}
+	if strings.TrimSpace(c.Server.GRPC.TLS.CertFile) == "" {
+		return errors.New("server.grpc.tls.cert_file is required")
+	}
+	if strings.TrimSpace(c.Server.GRPC.TLS.KeyFile) == "" {
+		return errors.New("server.grpc.tls.key_file is required")
+	}
 	return nil
 }
 
@@ -45,6 +51,11 @@ func (c *Config) ValidateClient() error {
 	}
 	if strings.TrimSpace(c.Log.Level) == "" {
 		return errors.New("log.level is required")
+	}
+	if strings.TrimSpace(c.Client.GRPC.Address) != "" {
+		if strings.TrimSpace(c.Client.GRPC.TLS.CAFile) == "" {
+			return errors.New("client.grpc.tls.ca_file is required when client.grpc.address is set")
+		}
 	}
 	return nil
 }

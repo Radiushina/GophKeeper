@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,7 +16,7 @@ import (
 	"github.com/Radiushina/GophKeeper/internal/client"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
@@ -36,7 +38,14 @@ func newCLI(cfg *config.Config, log *zap.Logger) (*client.App, error) {
 	}
 	app.Client = oasClient
 	if cfg.Client.GRPC.Address != "" {
-		conn, err := grpc.NewClient(cfg.Client.GRPC.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		creds, err := loadClientTLS(cfg.Client.GRPC.TLS.CAFile, cfg.Client.GRPC.TLS.ServerName)
+		if err != nil {
+			return nil, fmt.Errorf("grpc tls: %w", err)
+		}
+		conn, err := grpc.NewClient(
+			cfg.Client.GRPC.Address,
+			grpc.WithTransportCredentials(creds),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("grpc files: %w", err)
 		}
@@ -96,4 +105,25 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	return t.base.RoundTrip(req)
+}
+
+func loadClientTLS(caFile, serverName string) (credentials.TransportCredentials, error) {
+	// Читаем ca.crt — «справочник печатей, которым мы доверяем».
+	pem, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, fmt.Errorf("read ca: %w", err)
+	}
+
+	// CertPool — набор доверенных CA.
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("append ca pem from %s", caFile)
+	}
+
+	tlsCfg := &tls.Config{
+		RootCAs:    pool,       // проверяем server.crt этой CA
+		ServerName: serverName, // ожидаемое имя в сертификате (localhost)
+		MinVersion: tls.VersionTLS12,
+	}
+	return credentials.NewTLS(tlsCfg), nil
 }
