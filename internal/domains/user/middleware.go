@@ -11,8 +11,8 @@ import (
 
 type userIDKey struct{}
 
-// WithUserID puts the authenticated owner id on ctx.
-func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
+// withUserID puts the authenticated owner id on ctx.
+func withUserID(ctx context.Context, userID uuid.UUID) context.Context {
 	return context.WithValue(ctx, userIDKey{}, userID)
 }
 
@@ -51,7 +51,7 @@ func NewAuthMiddleware(jwt *JWT) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), userID)))
+			next.ServeHTTP(w, r.WithContext(withUserID(r.Context(), userID)))
 		})
 	}
 }

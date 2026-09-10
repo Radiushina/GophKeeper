@@ -1,9 +1,11 @@
 package user_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/Radiushina/GophKeeper/gen/oas"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -68,4 +70,30 @@ func TestJWT_Parse(t *testing.T) {
 			require.Equal(t, tc.wantID, got)
 		})
 	}
+}
+
+func TestJWT_HandleBearerAuth(t *testing.T) {
+	t.Parallel()
+
+	j := user.NewJWT("test-secret", time.Hour)
+	id := uuid.New()
+
+	ctx := ctxWithUserID(t, j, id)
+	got, err := user.IDFromContext(ctx)
+	require.NoError(t, err)
+	require.Equal(t, id, got)
+
+	_, err = j.HandleBearerAuth(context.Background(), "", oas.BearerAuth{})
+	require.Error(t, err)
+}
+
+// ctxWithUserID builds an authenticated ctx the same way production does (via HandleBearerAuth),
+// without exporting user.withUserID.
+func ctxWithUserID(t *testing.T, j *user.JWT, id uuid.UUID) context.Context {
+	t.Helper()
+	tok, err := j.Generate(id)
+	require.NoError(t, err)
+	ctx, err := j.HandleBearerAuth(context.Background(), "", oas.BearerAuth{Token: tok})
+	require.NoError(t, err)
+	return ctx
 }

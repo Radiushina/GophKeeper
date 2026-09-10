@@ -77,5 +77,5 @@ func (j *JWT) HandleBearerAuth(ctx context.Context, _ oas.OperationName, t oas.B
 	if err != nil {
 		return ctx, &ogenerrors.SecurityError{Err: err}
 	}
-	return WithUserID(ctx, userID), nil
+	return withUserID(ctx, userID), nil
 }
