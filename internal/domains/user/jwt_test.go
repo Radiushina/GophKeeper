@@ -87,8 +87,6 @@ func TestJWT_HandleBearerAuth(t *testing.T) {
 	require.Error(t, err)
 }
 
-// ctxWithUserID builds an authenticated ctx the same way production does (via HandleBearerAuth),
-// without exporting user.withUserID.
 func ctxWithUserID(t *testing.T, j *user.JWT, id uuid.UUID) context.Context {
 	t.Helper()
 	tok, err := j.Generate(id)
