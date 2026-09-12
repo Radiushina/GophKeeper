@@ -30,7 +30,8 @@ go.work.sum
 # Build output
 /bin/
 
-# Dev TLS material (private keys and intermediates; *.crt can stay tracked)
+# Dev TLS material — generate locally with `make certs`, do not commit
+certs/*.crt
 certs/*.key
 certs/*.csr
 certs/*.srl
