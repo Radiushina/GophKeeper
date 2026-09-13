@@ -8,9 +8,49 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	CardsHandler
 	FilesHandler
 	NotesHandler
 	UserHandler
+}
+
+// CardsHandler handles operations described by OpenAPI v3 specification.
+//
+// x-ogen-operation-group: Cards
+type CardsHandler interface {
+	// CardCreate implements card-create operation.
+	//
+	// Создать запись банковской карты.
+	//
+	// POST /api/v1/cards
+	CardCreate(ctx context.Context, req *CreateCard) (CardCreateRes, error)
+	// CardDelete implements cardDelete operation.
+	//
+	// Удалить карту (tombstone).
+	//
+	// DELETE /api/v1/cards/{id}
+	CardDelete(ctx context.Context, params CardDeleteParams) (CardDeleteRes, error)
+	// CardGet implements card-get operation.
+	//
+	// Карта владельца.
+	//
+	// GET /api/v1/cards/{id}
+	CardGet(ctx context.Context, params CardGetParams) (CardGetRes, error)
+	// CardUpdate implements card-update operation.
+	//
+	// Обновить запись банковской карты.
+	//
+	// PUT /api/v1/cards/{id}
+	CardUpdate(ctx context.Context, req *UpdateCard, params CardUpdateParams) (CardUpdateRes, error)
+	// ListCards implements list-cards operation.
+	//
+	// Только объекты текущего пользователя. Если передан
+	// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+	// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+	// — все живые объекты (без tombstone).
+	//
+	// GET /api/v1/cards
+	ListCards(ctx context.Context, params ListCardsParams) (ListCardsRes, error)
 }
 
 // FilesHandler handles operations described by OpenAPI v3 specification.

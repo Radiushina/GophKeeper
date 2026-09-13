@@ -31,6 +31,42 @@ func (UnimplementedHandler) AuthRegister(ctx context.Context, req *RegisterReq) 
 	return r, ht.ErrNotImplemented
 }
 
+// CardCreate implements card-create operation.
+//
+// Создать запись банковской карты.
+//
+// POST /api/v1/cards
+func (UnimplementedHandler) CardCreate(ctx context.Context, req *CreateCard) (r CardCreateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CardDelete implements cardDelete operation.
+//
+// Удалить карту (tombstone).
+//
+// DELETE /api/v1/cards/{id}
+func (UnimplementedHandler) CardDelete(ctx context.Context, params CardDeleteParams) (r CardDeleteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CardGet implements card-get operation.
+//
+// Карта владельца.
+//
+// GET /api/v1/cards/{id}
+func (UnimplementedHandler) CardGet(ctx context.Context, params CardGetParams) (r CardGetRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CardUpdate implements card-update operation.
+//
+// Обновить запись банковской карты.
+//
+// PUT /api/v1/cards/{id}
+func (UnimplementedHandler) CardUpdate(ctx context.Context, req *UpdateCard, params CardUpdateParams) (r CardUpdateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FileCreate implements file-create operation.
 //
 // Создать бинарную запись.
@@ -64,6 +100,18 @@ func (UnimplementedHandler) FileGet(ctx context.Context, params FileGetParams) (
 //
 // PUT /api/v1/files/{id}
 func (UnimplementedHandler) FileUpdate(ctx context.Context, req *UpdateFile, params FileUpdateParams) (r FileUpdateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCards implements list-cards operation.
+//
+// Только объекты текущего пользователя. Если передан
+// `since`, возвращаются записи с `updated_at >= since`, включая tombstone
+// (`deleted_at`), чтобы клиент удалил локальные копии. Без `since`
+// — все живые объекты (без tombstone).
+//
+// GET /api/v1/cards
+func (UnimplementedHandler) ListCards(ctx context.Context, params ListCardsParams) (r ListCardsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

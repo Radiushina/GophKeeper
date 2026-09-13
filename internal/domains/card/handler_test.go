@@ -1,4 +1,4 @@
-package note_test
+package card_test
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHandler_Notes(t *testing.T) {
+func TestHandler_Cards(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -37,68 +37,68 @@ func TestHandler_Notes(t *testing.T) {
 		{
 			name:   "create",
 			method: http.MethodPost,
-			path:   func(uuid.UUID) string { return "/api/v1/notes" },
+			path:   func(uuid.UUID) string { return "/api/v1/cards" },
 			auth:   true,
 			body: func(id uuid.UUID) []byte {
-				return mustJSON(&oas.CreateNote{
+				return mustJSON(&oas.CreateCard{
 					ID: id, Version: 1, Nonce: fillBytes(vault.NonceSize, 9), Meta: oas.NewOptString("work"), Ciphertext: fillBytes(32, 8),
 				})
 			},
 			wantStatus: http.StatusOK,
 			check: func(t *testing.T, res *http.Response, id uuid.UUID) {
 				t.Helper()
-				var got oas.Note
+				var got oas.Card
 				require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
 				require.Equal(t, id, got.ID)
 				require.Equal(t, int64(1), got.Version)
-				require.Equal(t, oas.NoteKindNote, got.Kind)
+				require.Equal(t, oas.CardKindCard, got.Kind)
 				require.Equal(t, "work", got.Meta.Value)
 			},
 		},
 		{
 			name:   "update",
 			method: http.MethodPut,
-			path:   func(id uuid.UUID) string { return "/api/v1/notes/" + id.String() },
+			path:   func(id uuid.UUID) string { return "/api/v1/cards/" + id.String() },
 			auth:   true,
 			setup: func(t *testing.T, base, token string, id uuid.UUID) {
 				t.Helper()
-				createNote(t, base, token, id)
+				createCard(t, base, token, id)
 			},
 			body: func(uuid.UUID) []byte {
-				return mustJSON(&oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
+				return mustJSON(&oas.UpdateCard{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
 			},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:   "stale version",
 			method: http.MethodPut,
-			path:   func(id uuid.UUID) string { return "/api/v1/notes/" + id.String() },
+			path:   func(id uuid.UUID) string { return "/api/v1/cards/" + id.String() },
 			auth:   true,
 			setup: func(t *testing.T, base, token string, id uuid.UUID) {
 				t.Helper()
-				createNote(t, base, token, id)
-				doJSON(t, http.MethodPut, base+"/api/v1/notes/"+id.String(), token, mustJSON(&oas.UpdateNote{
+				createCard(t, base, token, id)
+				doJSON(t, http.MethodPut, base+"/api/v1/cards/"+id.String(), token, mustJSON(&oas.UpdateCard{
 					Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6),
 				}), http.StatusOK)
 			},
 			body: func(uuid.UUID) []byte {
-				return mustJSON(&oas.UpdateNote{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
+				return mustJSON(&oas.UpdateCard{Version: 1, Nonce: fillBytes(vault.NonceSize, 7), Ciphertext: fillBytes(32, 6)})
 			},
 			wantStatus: http.StatusConflict,
 		},
 		{
 			name:   "delete",
 			method: http.MethodDelete,
-			path:   func(id uuid.UUID) string { return "/api/v1/notes/" + id.String() },
+			path:   func(id uuid.UUID) string { return "/api/v1/cards/" + id.String() },
 			auth:   true,
 			setup: func(t *testing.T, base, token string, id uuid.UUID) {
 				t.Helper()
-				createNote(t, base, token, id)
+				createCard(t, base, token, id)
 			},
 			wantStatus: http.StatusOK,
 			check: func(t *testing.T, res *http.Response, _ uuid.UUID) {
 				t.Helper()
-				var tomb oas.Note
+				var tomb oas.Card
 				require.NoError(t, json.NewDecoder(res.Body).Decode(&tomb))
 				require.True(t, tomb.DeletedAt.IsSet())
 			},
@@ -106,7 +106,7 @@ func TestHandler_Notes(t *testing.T) {
 		{
 			name:       "list without auth",
 			method:     http.MethodGet,
-			path:       func(uuid.UUID) string { return "/api/v1/notes" },
+			path:       func(uuid.UUID) string { return "/api/v1/cards" },
 			wantStatus: http.StatusUnauthorized,
 		},
 	}
@@ -115,7 +115,7 @@ func TestHandler_Notes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ts, token := startNoteServer(t)
+			ts, token := startCardServer(t)
 			id := uuid.New()
 			if tc.setup != nil {
 				tc.setup(t, ts.URL, token, id)
@@ -144,13 +144,13 @@ func TestHandler_Notes(t *testing.T) {
 	}
 }
 
-func startNoteServer(t *testing.T) (*httptest.Server, string) {
+func startCardServer(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
-	tokens := user.NewJWT("note-secret", time.Hour)
+	tokens := user.NewJWT("card-secret", time.Hour)
 	h := providers.NewOASHandler(
 		user.NewHandler(user.NewService(newUserMem(), tokens, user.NewHasher()), nil),
-		note.NewHandler(note.NewService(newMemNotes()), nil),
-		card.NewMemHandler(),
+		note.NewHandler(note.NewService(noteStub{}), nil),
+		card.NewHandler(card.NewService(card.NewMemRepo()), nil),
 		file.NewMemHandler(),
 	)
 	srv, err := oas.NewServer(h, tokens)
@@ -163,9 +163,9 @@ func startNoteServer(t *testing.T) (*httptest.Server, string) {
 	return ts, token
 }
 
-func createNote(t *testing.T, base, token string, id uuid.UUID) {
+func createCard(t *testing.T, base, token string, id uuid.UUID) {
 	t.Helper()
-	doJSON(t, http.MethodPost, base+"/api/v1/notes", token, mustJSON(&oas.CreateNote{
+	doJSON(t, http.MethodPost, base+"/api/v1/cards", token, mustJSON(&oas.CreateCard{
 		ID: id, Version: 1, Nonce: fillBytes(vault.NonceSize, 9), Ciphertext: fillBytes(32, 8),
 	}), http.StatusOK)
 }
@@ -205,4 +205,18 @@ func (m *userMem) CreateUser(_ context.Context, u user.User) (user.User, error) 
 
 func (m *userMem) GetByLogin(_ context.Context, _ string) (user.User, error) {
 	return user.User{}, user.ErrUserNotFound
+}
+
+type noteStub struct{}
+
+func (noteStub) Create(_ context.Context, n note.Note) (note.Note, error) { return n, nil }
+func (noteStub) Update(_ context.Context, n note.Note) (note.Note, error) { return n, nil }
+func (noteStub) SoftDelete(_ context.Context, _, _ uuid.UUID) (note.Note, error) {
+	return note.Note{}, note.ErrNotFound
+}
+func (noteStub) Get(_ context.Context, _, _ uuid.UUID) (note.Note, error) {
+	return note.Note{}, note.ErrNotFound
+}
+func (noteStub) List(_ context.Context, _ uuid.UUID, _ *time.Time) ([]note.Note, error) {
+	return nil, nil
 }

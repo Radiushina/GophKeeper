@@ -31,6 +31,9 @@ const (
 	tuiFileEdit
 	tuiFileDelete
 	tuiFileGet
+	tuiCardAdd
+	tuiCardEdit
+	tuiCardDelete
 )
 
 const (
@@ -47,6 +50,7 @@ type listKind int
 const (
 	listNotes listKind = iota
 	listFiles
+	listCards
 )
 
 type tuiNote struct {
@@ -93,8 +97,10 @@ type tuiModel struct {
 	table    table.Model
 	items    []tuiNote
 	files    []tuiFile
+	cards    []tuiCard
 	selected tuiNote
 	selFile  tuiFile
+	selCard  tuiCard
 	focus    int
 	busy     bool
 	status   string
@@ -134,6 +140,21 @@ func newTUIModel(ctx context.Context, app *App) tuiModel {
 	extra.CharLimit = 256
 	extra.Width = 48
 
+	extra2 := textinput.New()
+	extra2.Placeholder = cardExpiryPlaceholder
+	extra2.CharLimit = 32
+	extra2.Width = 48
+
+	extra3 := textinput.New()
+	extra3.Placeholder = cardCVVPlaceholder
+	extra3.CharLimit = 8
+	extra3.Width = 48
+
+	extra4 := textinput.New()
+	extra4.Placeholder = cardMetaPlaceholder
+	extra4.CharLimit = 256
+	extra4.Width = 48
+
 	km := table.DefaultKeyMap()
 	km.HalfPageDown = key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "½ page down"))
 
@@ -155,7 +176,7 @@ func newTUIModel(ctx context.Context, app *App) tuiModel {
 		ctx:    ctx,
 		app:    app,
 		screen: tuiHome,
-		inputs: []textinput.Model{login, password, extra},
+		inputs: []textinput.Model{login, password, extra, extra2, extra3, extra4},
 		table:  t,
 	}
 }
@@ -204,9 +225,12 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		inner := contentWidth(m.width)
-		if m.listKind == listFiles {
+		switch m.listKind {
+		case listFiles:
 			m.table.SetColumns(fileColumns(inner))
-		} else {
+		case listCards:
+			m.table.SetColumns(cardColumns(inner))
+		default:
 			m.table.SetColumns(noteColumns(inner))
 		}
 		m.table.SetWidth(inner)
@@ -224,6 +248,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.listOpen = false
 		m.items = nil
 		m.files = nil
+		m.cards = nil
 		m.table.SetRows(nil)
 		return m.blurInputs(), nil
 	case notesResultMsg:
@@ -257,6 +282,26 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.show {
 			m.listOpen = true
 			m.listKind = listFiles
+		}
+		if msg.status != "" {
+			m.status = msg.status
+		}
+		if msg.stay {
+			return m, nil
+		}
+		m.screen = tuiHome
+		return m.blurInputs(), nil
+	case cardsResultMsg:
+		m.busy = false
+		if msg.err != nil {
+			m.err = msg.err.Error()
+			return m, nil
+		}
+		m.err = ""
+		m = m.applyCards(msg.items)
+		if msg.show {
+			m.listOpen = true
+			m.listKind = listCards
 		}
 		if msg.status != "" {
 			m.status = msg.status
@@ -309,6 +354,8 @@ func shortcutKey(msg tea.KeyMsg) string {
 		return "v"
 	case "ы":
 		return "s"
+	case "с":
+		return "c"
 	default:
 		return key
 	}
@@ -344,12 +391,22 @@ func (m tuiModel) updateHome(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 		m.busy = true
 		m.err = ""
 		return m, m.loadFiles("", false, true)
+	case "c":
+		if !m.signedIn() {
+			return m, nil
+		}
+		m.busy = true
+		m.err = ""
+		return m, m.loadCards("", false, true)
 	case "a":
 		if !m.signedIn() {
 			return m, nil
 		}
 		if m.listOpen && m.listKind == listFiles {
 			return m.openForm(tuiFileAdd)
+		}
+		if m.listOpen && m.listKind == listCards {
+			return m.openForm(tuiCardAdd)
 		}
 		return m.openForm(tuiNoteAdd)
 	case "e", "enter":
@@ -359,6 +416,9 @@ func (m tuiModel) updateHome(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 		if m.listOpen && m.listKind == listFiles {
 			return m.openSelectedFile(tuiFileEdit)
 		}
+		if m.listOpen && m.listKind == listCards {
+			return m.openSelectedCard(tuiCardEdit)
+		}
 		return m.openSelected(tuiNoteEdit)
 	case "d":
 		if !m.signedIn() {
@@ -366,6 +426,9 @@ func (m tuiModel) updateHome(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 		}
 		if m.listOpen && m.listKind == listFiles {
 			return m.openSelectedFile(tuiFileDelete)
+		}
+		if m.listOpen && m.listKind == listCards {
+			return m.openSelectedCard(tuiCardDelete)
 		}
 		return m.openSelected(tuiNoteDelete)
 	case "s":
@@ -468,10 +531,12 @@ func (m tuiModel) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m tuiModel) fieldCount() int {
 	switch m.screen {
-	case tuiNoteDelete, tuiFileDelete:
+	case tuiNoteDelete, tuiFileDelete, tuiCardDelete:
 		return 0
 	case tuiFileGet:
 		return 1
+	case tuiCardAdd, tuiCardEdit:
+		return 5
 	case tuiNoteEdit, tuiNoteAdd, tuiFileEdit, tuiFileAdd, tuiLogin:
 		return 2
 	default:
@@ -499,6 +564,20 @@ func (m tuiModel) openForm(screen tuiScreen) (tea.Model, tea.Cmd) {
 	case tuiFileGet:
 		m.inputs[0].Placeholder = fileDestPlaceholder
 		m.inputs[0].CharLimit = 4096
+	case tuiCardAdd, tuiCardEdit:
+		m.inputs[0].Placeholder = cardNumberPlaceholder
+		m.inputs[0].CharLimit = 32
+		m.inputs[1].Placeholder = cardHolderPlaceholder
+		m.inputs[1].EchoMode = textinput.EchoNormal
+		m.inputs[1].CharLimit = 128
+		m.inputs[2].Placeholder = cardExpiryPlaceholder
+		m.inputs[2].CharLimit = 32
+		m.inputs[3].Placeholder = cardCVVPlaceholder
+		m.inputs[3].EchoMode = textinput.EchoPassword
+		m.inputs[3].EchoCharacter = '•'
+		m.inputs[3].CharLimit = 8
+		m.inputs[4].Placeholder = cardMetaPlaceholder
+		m.inputs[4].CharLimit = 256
 	default:
 		m.inputs[0].Placeholder = "login"
 		m.inputs[0].CharLimit = 64
@@ -525,6 +604,12 @@ func (m tuiModel) submit() (tea.Model, tea.Cmd) {
 		return m.submitFileDelete()
 	case tuiFileGet:
 		return m.submitFileGet()
+	case tuiCardAdd:
+		return m.submitCard()
+	case tuiCardEdit:
+		return m.submitCardEdit()
+	case tuiCardDelete:
+		return m.submitCardDelete()
 	}
 	login := strings.TrimSpace(m.inputs[0].Value())
 	password := m.inputs[1].Value()
@@ -914,7 +999,7 @@ func (m tuiModel) updateInputs(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m tuiModel) View() string {
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Render("GophKeeper")
-	subtitle := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("vault for notes and files")
+	subtitle := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render("vault for notes, cards and files")
 
 	server := m.serverURL()
 	session := "not signed in"
@@ -959,16 +1044,23 @@ func (m tuiModel) homeBody() string {
 	if !m.listOpen {
 		return "Choose a command."
 	}
-	if m.listKind == listFiles {
+	switch m.listKind {
+	case listFiles:
 		if len(m.files) == 0 {
 			return "No files yet.\nPress a to add one."
 		}
 		return m.filesGrid()
+	case listCards:
+		if len(m.cards) == 0 {
+			return "No cards yet.\nPress a to add one."
+		}
+		return m.cardsGrid()
+	default:
+		if len(m.items) == 0 {
+			return "No notes yet.\nPress a to add one."
+		}
+		return m.notesGrid()
 	}
-	if len(m.items) == 0 {
-		return "No notes yet.\nPress a to add one."
-	}
-	return m.notesGrid()
 }
 
 func (m tuiModel) notesGrid() string {
@@ -1038,6 +1130,12 @@ func (m tuiModel) formBody() string {
 		heading = "Delete file"
 	case tuiFileGet:
 		heading = "Download file"
+	case tuiCardAdd:
+		heading = "Add card"
+	case tuiCardEdit:
+		heading = "Edit card"
+	case tuiCardDelete:
+		heading = "Delete card"
 	}
 	var b strings.Builder
 	b.WriteString(heading)
@@ -1048,6 +1146,10 @@ func (m tuiModel) formBody() string {
 	if m.screen == tuiFileAdd || m.screen == tuiFileEdit {
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(fileMetaHint))
+	}
+	if m.screen == tuiCardAdd || m.screen == tuiCardEdit {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(cardMetaHint))
 	}
 	if m.selected.id != uuid.Nil && (m.screen == tuiNoteEdit || m.screen == tuiNoteDelete) {
 		b.WriteString("\n")
@@ -1061,7 +1163,13 @@ func (m tuiModel) formBody() string {
 			fmt.Sprintf("%s  %s", shortID(m.selFile.id), m.selFile.name),
 		))
 	}
-	if (m.screen == tuiNoteDelete && m.selected.id != uuid.Nil) || (m.screen == tuiFileDelete && m.selFile.id != uuid.Nil) {
+	if m.selCard.id != uuid.Nil && (m.screen == tuiCardEdit || m.screen == tuiCardDelete) {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(
+			fmt.Sprintf("%s  %s", shortID(m.selCard.id), maskCardNumber(m.selCard.number)),
+		))
+	}
+	if (m.screen == tuiNoteDelete && m.selected.id != uuid.Nil) || (m.screen == tuiFileDelete && m.selFile.id != uuid.Nil) || (m.screen == tuiCardDelete && m.selCard.id != uuid.Nil) {
 		b.WriteString("\n\nenter confirm")
 		return b.String()
 	}
@@ -1079,13 +1187,17 @@ func (m tuiModel) help() string {
 		if m.signedIn() {
 			if m.listOpen {
 				refresh := "n refresh"
-				if m.listKind == listFiles {
+				switch m.listKind {
+				case listFiles:
 					refresh = "f refresh"
 					return style.Render("↑↓ move   enter/e edit   s download   d delete   a add   " + refresh + "   esc back   q quit")
+				case listCards:
+					refresh = "c refresh"
+					return style.Render("↑↓ move   enter/e edit   d delete   a add   " + refresh + "   esc back   q quit")
 				}
 				return style.Render("↑↓ move   enter/e edit   d delete   a add   " + refresh + "   esc back   q quit")
 			}
-			return style.Render("n notes   f files   a add   v version   q quit")
+			return style.Render("n notes   c cards   f files   a add   v version   q quit")
 		}
 		return style.Render("l login   v version   q quit")
 	}

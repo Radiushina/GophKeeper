@@ -10,6 +10,7 @@ import (
 	"context"
 	"github.com/Radiushina/GophKeeper/cmd/server/di/providers"
 	"github.com/Radiushina/GophKeeper/internal/blob"
+	"github.com/Radiushina/GophKeeper/internal/domains/card"
 	"github.com/Radiushina/GophKeeper/internal/domains/file"
 	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
@@ -42,6 +43,9 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 	notesRepo := note.NewRepository(pool)
 	noteService := note.NewService(notesRepo)
 	noteHandler := note.NewHandler(noteService, logger)
+	cardsRepo := card.NewRepository(pool)
+	cardService := card.NewService(cardsRepo)
+	cardHandler := card.NewHandler(cardService, logger)
 	filesRepo := file.NewRepository(pool)
 	s3, err := blob.NewS3(ctx, config)
 	if err != nil {
@@ -51,7 +55,7 @@ func InjectApp(ctx context.Context) (*App, func(), error) {
 	}
 	fileService := file.NewService(filesRepo, s3)
 	fileHandler := file.NewHandler(fileService, logger)
-	oasHandler := providers.NewOASHandler(handler, noteHandler, fileHandler)
+	oasHandler := providers.NewOASHandler(handler, noteHandler, cardHandler, fileHandler)
 	server, err := providers.NewHTTPServer(config, oasHandler, jwt, logger)
 	if err != nil {
 		cleanup2()

@@ -188,6 +188,333 @@ func (s *BearerAuth) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Данные банковской карты владельца (шифротекст).
+// Ref: #/Card
+type Card struct {
+	// Идентификатор записи. Задаёт клиент при создании.
+	ID uuid.UUID `json:"id"`
+	// Тип записи. Всегда `card`.
+	Kind CardKind `json:"kind"`
+	// Версия записи для оптимистичной блокировки и синка.
+	Version int64 `json:"version"`
+	// Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
+	// Сервер хранит как есть, не интерпретирует.
+	Nonce []byte `json:"nonce"`
+	// Незашифрованные метаданные: название, тег, привязка к
+	// сайту. Сервер хранит как есть и может фильтровать без
+	// расшифровки секрета.
+	Meta OptString `json:"meta"`
+	// Шифротекст карты (номер, держатель, срок, CVV). Сервер не
+	// расшифровывает.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Опционально; если был при
+	// создании/обновлении — отдаётся обратно.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+	// Tombstone для синка на другие устройства. Заполнено только
+	// у удалённых записей.
+	DeletedAt OptDateTime `json:"deleted_at"`
+	// Время создания записи на сервере (RFC3339).
+	CreatedAt time.Time `json:"created_at"`
+	// Время последнего изменения на сервере (RFC3339).
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetID returns the value of ID.
+func (s *Card) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *Card) GetKind() CardKind {
+	return s.Kind
+}
+
+// GetVersion returns the value of Version.
+func (s *Card) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *Card) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *Card) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *Card) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *Card) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *Card) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Card) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *Card) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Card) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *Card) SetKind(val CardKind) {
+	s.Kind = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Card) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *Card) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *Card) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *Card) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *Card) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *Card) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Card) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *Card) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*Card) cardCreateRes() {}
+func (*Card) cardDeleteRes() {}
+func (*Card) cardGetRes()    {}
+func (*Card) cardUpdateRes() {}
+
+type CardCreateBadRequest UnsuccessfulResponse
+
+func (*CardCreateBadRequest) cardCreateRes() {}
+
+type CardCreateConflict UnsuccessfulResponse
+
+func (*CardCreateConflict) cardCreateRes() {}
+
+type CardCreateInternalServerError UnsuccessfulResponse
+
+func (*CardCreateInternalServerError) cardCreateRes() {}
+
+type CardCreateUnauthorized UnsuccessfulResponse
+
+func (*CardCreateUnauthorized) cardCreateRes() {}
+
+type CardDeleteInternalServerError UnsuccessfulResponse
+
+func (*CardDeleteInternalServerError) cardDeleteRes() {}
+
+type CardDeleteNotFound UnsuccessfulResponse
+
+func (*CardDeleteNotFound) cardDeleteRes() {}
+
+type CardDeleteUnauthorized UnsuccessfulResponse
+
+func (*CardDeleteUnauthorized) cardDeleteRes() {}
+
+type CardGetInternalServerError UnsuccessfulResponse
+
+func (*CardGetInternalServerError) cardGetRes() {}
+
+type CardGetNotFound UnsuccessfulResponse
+
+func (*CardGetNotFound) cardGetRes() {}
+
+type CardGetUnauthorized UnsuccessfulResponse
+
+func (*CardGetUnauthorized) cardGetRes() {}
+
+// Тип записи. Всегда `card`.
+type CardKind string
+
+const (
+	CardKindCard CardKind = "card"
+)
+
+// AllValues returns all CardKind values.
+func (CardKind) AllValues() []CardKind {
+	return []CardKind{
+		CardKindCard,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CardKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CardKindCard:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CardKind) UnmarshalText(data []byte) error {
+	switch CardKind(data) {
+	case CardKindCard:
+		*s = CardKindCard
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CardListRes
+type CardListRes struct {
+	Items []Card `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *CardListRes) GetItems() []Card {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *CardListRes) SetItems(val []Card) {
+	s.Items = val
+}
+
+func (*CardListRes) listCardsRes() {}
+
+type CardUpdateBadRequest UnsuccessfulResponse
+
+func (*CardUpdateBadRequest) cardUpdateRes() {}
+
+type CardUpdateConflict UnsuccessfulResponse
+
+func (*CardUpdateConflict) cardUpdateRes() {}
+
+type CardUpdateInternalServerError UnsuccessfulResponse
+
+func (*CardUpdateInternalServerError) cardUpdateRes() {}
+
+type CardUpdateNotFound UnsuccessfulResponse
+
+func (*CardUpdateNotFound) cardUpdateRes() {}
+
+type CardUpdateUnauthorized UnsuccessfulResponse
+
+func (*CardUpdateUnauthorized) cardUpdateRes() {}
+
+// Ref: #/CreateCard
+type CreateCard struct {
+	// Идентификатор.
+	ID uuid.UUID `json:"id"`
+	// При создании — `1`. Несовпадение — 409.
+	Version int64 `json:"version"`
+	// Nonce(number used once) - одноразовое случайное число, которое
+	// идет вместе с AES-256-GCM (12 байт).
+	Nonce []byte `json:"nonce"`
+	// Незашифрованные метаданные (название, тег, сайт).
+	Meta OptString `json:"meta"`
+	// Зашифрованные данные карты (AES-256-GCM). Метаданные в `meta`,
+	// не здесь. Сервер не расшифровывает. Макс. размер
+	// открытого текста — 1MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 шифротекста. Если передан — сервер сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetID returns the value of ID.
+func (s *CreateCard) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetVersion returns the value of Version.
+func (s *CreateCard) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *CreateCard) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *CreateCard) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *CreateCard) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *CreateCard) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetID sets the value of ID.
+func (s *CreateCard) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CreateCard) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *CreateCard) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *CreateCard) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *CreateCard) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *CreateCard) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
+}
+
 // Ref: #/CreateFile
 type CreateFile struct {
 	// Идентификатор.
@@ -720,6 +1047,18 @@ func (KdfParamsVersion) AllValues() []KdfParamsVersion {
 	}
 }
 
+type ListCardsBadRequest UnsuccessfulResponse
+
+func (*ListCardsBadRequest) listCardsRes() {}
+
+type ListCardsInternalServerError UnsuccessfulResponse
+
+func (*ListCardsInternalServerError) listCardsRes() {}
+
+type ListCardsUnauthorized UnsuccessfulResponse
+
+func (*ListCardsUnauthorized) listCardsRes() {}
+
 type ListFilesBadRequest UnsuccessfulResponse
 
 func (*ListFilesBadRequest) listFilesRes() {}
@@ -1167,6 +1506,77 @@ func (s *UnsuccessfulResponse) GetMsg() string {
 // SetMsg sets the value of Msg.
 func (s *UnsuccessfulResponse) SetMsg(val string) {
 	s.Msg = val
+}
+
+// Тело запроса на обновление карты.
+// Ref: #/UpdateCard
+type UpdateCard struct {
+	// Текущая версия записи на сервере (оптимистичная
+	// блокировка). Несовпадение — 409. После успеха сервер
+	// увеличивает версию на 1.
+	Version int64 `json:"version"`
+	// Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
+	// При каждом изменении клиент генерирует новый nonce.
+	Nonce []byte `json:"nonce"`
+	// Незашифрованные метаданные (название, тег, сайт).
+	Meta OptString `json:"meta"`
+	// Новый шифротекст карты (AES-256-GCM). Метаданные в `meta`, не
+	// здесь. Сервер не расшифровывает. Макс. размер
+	// открытого текста — 1 MiB.
+	Ciphertext []byte `json:"ciphertext"`
+	// SHA-256 нового шифротекста. Если передан — сервер
+	// сверяет.
+	CiphertextSHA256 []byte `json:"ciphertext_sha256"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateCard) GetVersion() int64 {
+	return s.Version
+}
+
+// GetNonce returns the value of Nonce.
+func (s *UpdateCard) GetNonce() []byte {
+	return s.Nonce
+}
+
+// GetMeta returns the value of Meta.
+func (s *UpdateCard) GetMeta() OptString {
+	return s.Meta
+}
+
+// GetCiphertext returns the value of Ciphertext.
+func (s *UpdateCard) GetCiphertext() []byte {
+	return s.Ciphertext
+}
+
+// GetCiphertextSHA256 returns the value of CiphertextSHA256.
+func (s *UpdateCard) GetCiphertextSHA256() []byte {
+	return s.CiphertextSHA256
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateCard) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetNonce sets the value of Nonce.
+func (s *UpdateCard) SetNonce(val []byte) {
+	s.Nonce = val
+}
+
+// SetMeta sets the value of Meta.
+func (s *UpdateCard) SetMeta(val OptString) {
+	s.Meta = val
+}
+
+// SetCiphertext sets the value of Ciphertext.
+func (s *UpdateCard) SetCiphertext(val []byte) {
+	s.Ciphertext = val
+}
+
+// SetCiphertextSHA256 sets the value of CiphertextSHA256.
+func (s *UpdateCard) SetCiphertextSHA256(val []byte) {
+	s.CiphertextSHA256 = val
 }
 
 // Тело запроса на обновление бинарной записи.

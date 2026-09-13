@@ -5,7 +5,7 @@ info:
   version: 0.1.0
   description: |
     Документация клиент-серверного API GophKeeper: учётные записи, текстовые
-    записи и двоичные файлы владельца. Карты в API не входят.
+    записи, банковские карты и двоичные файлы владельца.
 
     Секрет клиент шифрует до отправки (`ciphertext`). Метаданные (`meta`) —
     название, тег, сайт — сервер хранит открыто, чтобы искать без расшифровки.
@@ -231,6 +231,145 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /api/v1/cards:
+    post:
+      x-ogen-operation-group: cards
+      operationId: card-create
+      summary: Создать запись банковской карты
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/card.yml#/CreateCard'
+      responses:
+        200:
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      x-ogen-operation-group: cards
+      operationId: list-cards
+      summary: Список карт владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/cards/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CardID'
+    get:
+      x-ogen-operation-group: cards
+      operationId: card-get
+      summary: Карта владельца
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      x-ogen-operation-group: cards
+      operationId: card-update
+      summary: Обновить запись банковской карты
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/card.yml#/UpdateCard'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      x-ogen-operation-group: cards
+      operationId: cardDelete
+      summary: Удалить карту (tombstone)
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /api/v1/files:
     post:
       x-ogen-operation-group: files
@@ -379,6 +518,13 @@ components:
       schema:
         type: string
         format: uuid
+    CardID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     FileID:
       name: id
       in: path
@@ -491,6 +637,14 @@ components:
           type: array
           items:
             $ref: './common/note.yml#/Note'
+    CardListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: './common/card.yml#/Card'
     FileListRes:
       type: object
       required: [items]

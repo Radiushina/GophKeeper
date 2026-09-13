@@ -9,6 +9,22 @@ type AuthRegisterRes interface {
 	authRegisterRes()
 }
 
+type CardCreateRes interface {
+	cardCreateRes()
+}
+
+type CardDeleteRes interface {
+	cardDeleteRes()
+}
+
+type CardGetRes interface {
+	cardGetRes()
+}
+
+type CardUpdateRes interface {
+	cardUpdateRes()
+}
+
 type FileCreateRes interface {
 	fileCreateRes()
 }
@@ -23,6 +39,10 @@ type FileGetRes interface {
 
 type FileUpdateRes interface {
 	fileUpdateRes()
+}
+
+type ListCardsRes interface {
+	listCardsRes()
 }
 
 type ListFilesRes interface {

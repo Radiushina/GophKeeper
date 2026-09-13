@@ -28,7 +28,7 @@ func Run(ctx context.Context, app *App, args []string) error {
 }
 
 func repl(ctx context.Context, app *App, in io.Reader, out io.Writer) error {
-	app.logInfo("GophKeeper. Commands: login, note-add, note-update, note-delete, note-get, note-list, file-add, file-update, file-delete, file-get, file-list, tui, version, exit")
+	app.logInfo("GophKeeper. Commands: login, note-add, note-update, note-delete, note-get, note-list, card-add, card-update, card-delete, card-get, card-list, file-add, file-update, file-delete, file-get, file-list, tui, version, exit")
 	sc := bufio.NewScanner(in)
 	for {
 		fmt.Fprint(out, "> ")
@@ -90,6 +90,36 @@ func execCommand(ctx context.Context, app *App, args []string) error {
 			return err
 		}
 		return NoteList(ctx, app, since)
+	case "card-add":
+		plain, meta, err := parseCardAddFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return CardAdd(ctx, app, plain, meta)
+	case "card-update":
+		upd, err := parseCardUpdateFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return CardUpdate(ctx, app, upd.id, upd.version, upd.plain, upd.meta)
+	case "card-delete":
+		id, err := parseNoteIDFlags(app, "card-delete", args[1:])
+		if err != nil {
+			return err
+		}
+		return CardDelete(ctx, app, id)
+	case "card-get":
+		id, err := parseNoteIDFlags(app, "card-get", args[1:])
+		if err != nil {
+			return err
+		}
+		return CardGet(ctx, app, id)
+	case "card-list":
+		since, err := parseNoteListFlags(app, args[1:])
+		if err != nil {
+			return err
+		}
+		return CardList(ctx, app, since)
 	case "file-add":
 		path, meta, err := parseFileAddFlags(app, args[1:])
 		if err != nil {
@@ -241,6 +271,61 @@ func parseNoteListFlags(app *App, args []string) (*time.Time, error) {
 		return nil, fmt.Errorf("since must be RFC3339")
 	}
 	return &t, nil
+}
+
+type cardUpdateArgs struct {
+	id      uuid.UUID
+	version int64
+	plain   CardPlain
+	meta    string
+}
+
+func parseCardAddFlags(app *App, args []string) (CardPlain, string, error) {
+	fs := flag.NewFlagSet("card-add", flag.ContinueOnError)
+	fs.SetOutput(app.logWriter())
+	var plain CardPlain
+	var meta string
+	fs.StringVar(&plain.Number, "number", "", "card number")
+	fs.StringVar(&plain.Holder, "holder", "", "card holder")
+	fs.StringVar(&plain.Expiry, "expiry", "", "expiry MM/YY")
+	fs.StringVar(&plain.CVV, "cvv", "", "CVV")
+	fs.StringVar(&meta, "meta", "", "label; not a secret")
+	if err := fs.Parse(args); err != nil {
+		return CardPlain{}, "", err
+	}
+	if strings.TrimSpace(plain.Number) == "" {
+		return CardPlain{}, "", fmt.Errorf("number is required")
+	}
+	return plain, meta, nil
+}
+
+func parseCardUpdateFlags(app *App, args []string) (cardUpdateArgs, error) {
+	fs := flag.NewFlagSet("card-update", flag.ContinueOnError)
+	fs.SetOutput(app.logWriter())
+	var (
+		rawID   string
+		version int64
+		plain   CardPlain
+		meta    string
+	)
+	fs.StringVar(&rawID, "id", "", "card id")
+	fs.Int64Var(&version, "version", 0, "current server version; 0 means fetch first")
+	fs.StringVar(&plain.Number, "number", "", "card number")
+	fs.StringVar(&plain.Holder, "holder", "", "card holder")
+	fs.StringVar(&plain.Expiry, "expiry", "", "expiry MM/YY")
+	fs.StringVar(&plain.CVV, "cvv", "", "CVV")
+	fs.StringVar(&meta, "meta", "", "label; not a secret")
+	if err := fs.Parse(args); err != nil {
+		return cardUpdateArgs{}, err
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return cardUpdateArgs{}, fmt.Errorf("id is required")
+	}
+	if strings.TrimSpace(plain.Number) == "" {
+		return cardUpdateArgs{}, fmt.Errorf("number is required")
+	}
+	return cardUpdateArgs{id: id, version: version, plain: plain, meta: meta}, nil
 }
 
 func parseFileAddFlags(app *App, args []string) (path, meta string, err error) {

@@ -4,21 +4,23 @@ import (
 	"context"
 
 	"github.com/Radiushina/GophKeeper/gen/oas"
+	"github.com/Radiushina/GophKeeper/internal/domains/card"
 	"github.com/Radiushina/GophKeeper/internal/domains/file"
 	"github.com/Radiushina/GophKeeper/internal/domains/note"
 	"github.com/Radiushina/GophKeeper/internal/domains/user"
 )
 
-// OASHandler joins auth, note and file HTTP handlers into one ogen Handler.
+// OASHandler joins auth, note, card and file HTTP handlers into one ogen Handler.
 type OASHandler struct {
 	users *user.Handler
 	notes *note.Handler
+	cards *card.Handler
 	files *file.Handler
 }
 
-// NewOASHandler composes user, note and file handlers.
-func NewOASHandler(users *user.Handler, notes *note.Handler, files *file.Handler) *OASHandler {
-	return &OASHandler{users: users, notes: notes, files: files}
+// NewOASHandler composes user, note, card and file handlers.
+func NewOASHandler(users *user.Handler, notes *note.Handler, cards *card.Handler, files *file.Handler) *OASHandler {
+	return &OASHandler{users: users, notes: notes, cards: cards, files: files}
 }
 
 // AuthRegister implements POST /api/v1/user/register.
@@ -54,6 +56,31 @@ func (h *OASHandler) NoteGet(ctx context.Context, params oas.NoteGetParams) (oas
 // ListNotes implements GET /api/v1/notes.
 func (h *OASHandler) ListNotes(ctx context.Context, params oas.ListNotesParams) (oas.ListNotesRes, error) {
 	return h.notes.ListNotes(ctx, params)
+}
+
+// CardCreate implements POST /api/v1/cards.
+func (h *OASHandler) CardCreate(ctx context.Context, req *oas.CreateCard) (oas.CardCreateRes, error) {
+	return h.cards.CardCreate(ctx, req)
+}
+
+// CardUpdate implements PUT /api/v1/cards/{id}.
+func (h *OASHandler) CardUpdate(ctx context.Context, req *oas.UpdateCard, params oas.CardUpdateParams) (oas.CardUpdateRes, error) {
+	return h.cards.CardUpdate(ctx, req, params)
+}
+
+// CardDelete implements DELETE /api/v1/cards/{id}.
+func (h *OASHandler) CardDelete(ctx context.Context, params oas.CardDeleteParams) (oas.CardDeleteRes, error) {
+	return h.cards.CardDelete(ctx, params)
+}
+
+// CardGet implements GET /api/v1/cards/{id}.
+func (h *OASHandler) CardGet(ctx context.Context, params oas.CardGetParams) (oas.CardGetRes, error) {
+	return h.cards.CardGet(ctx, params)
+}
+
+// ListCards implements GET /api/v1/cards.
+func (h *OASHandler) ListCards(ctx context.Context, params oas.ListCardsParams) (oas.ListCardsRes, error) {
+	return h.cards.ListCards(ctx, params)
 }
 
 // FileCreate implements POST /api/v1/files.

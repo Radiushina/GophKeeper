@@ -34,6 +34,16 @@ type cachedNote struct {
 	Meta    string    `json:"meta"`
 }
 
+type cachedCard struct {
+	ID      uuid.UUID `json:"id"`
+	Version int64     `json:"version"`
+	Number  string    `json:"number"`
+	Holder  string    `json:"holder"`
+	Expiry  string    `json:"expiry"`
+	CVV     string    `json:"cvv"`
+	Meta    string    `json:"meta"`
+}
+
 func isOffline(err error) bool {
 	if err == nil {
 		return false
@@ -186,6 +196,90 @@ func removeNotesCache(app *App, id uuid.UUID) {
 		}
 	}
 	_ = saveNotesCache(app, out)
+}
+
+func saveCardsCache(app *App, cards []cachedCard) error {
+	if !cacheEnabled(app) {
+		return nil
+	}
+	login := app.User()
+	if login == "" {
+		return fmt.Errorf("login first")
+	}
+	key := app.VaultKey()
+	if len(key) != vault.VKSize {
+		return fmt.Errorf("login first")
+	}
+	raw, err := json.Marshal(cards)
+	if err != nil {
+		return err
+	}
+	nonce, ct, err := vault.Seal(key, raw)
+	if err != nil {
+		return err
+	}
+	dir := userCacheDir(app, login)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "cards.bin"), append(nonce, ct...), 0o600)
+}
+
+func loadCardsCache(app *App) ([]cachedCard, error) {
+	login := app.User()
+	if login == "" {
+		return nil, fmt.Errorf("login first")
+	}
+	key := app.VaultKey()
+	if len(key) != vault.VKSize {
+		return nil, fmt.Errorf("login first")
+	}
+	raw, err := os.ReadFile(filepath.Join(userCacheDir(app, login), "cards.bin"))
+	if err != nil {
+		return nil, err
+	}
+	plain, err := vault.Open(key, raw)
+	if err != nil {
+		return nil, err
+	}
+	var cards []cachedCard
+	if err := json.Unmarshal(plain, &cards); err != nil {
+		return nil, err
+	}
+	return cards, nil
+}
+
+func upsertCardsCache(app *App, card cachedCard) {
+	items, err := loadCardsCache(app)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		items = nil
+	}
+	found := false
+	for i := range items {
+		if items[i].ID == card.ID {
+			items[i] = card
+			found = true
+			break
+		}
+	}
+	if !found {
+		items = append(items, card)
+	}
+	_ = saveCardsCache(app, items)
+}
+
+func removeCardsCache(app *App, id uuid.UUID) {
+	items, err := loadCardsCache(app)
+	if err != nil {
+		return
+	}
+	out := items[:0]
+	for _, n := range items {
+		if n.ID != id {
+			out = append(out, n)
+		}
+	}
+	_ = saveCardsCache(app, out)
 }
 
 func loginOffline(app *App, login, password string) error {
