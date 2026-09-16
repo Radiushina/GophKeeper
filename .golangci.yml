@@ -1,0 +1,54 @@
+version: 2
+
+linters:
+  enable:
+    - revive     # Style mistakes
+    - staticcheck # Bug detection
+    - errcheck   # Unchecked errors
+  disable-all: false
+
+  settings:
+    revive:
+      enable-all-rules: true
+      rules:
+        # Too noisy for this codebase right now.
+        - name: add-constant
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: package-directory-mismatch
+          disabled: true
+        - name: enforce-switch-style
+          disabled: true
+        - name: get-return
+          disabled: true
+        - name: function-length
+          disabled: true
+
+        - name: package-comments
+          disabled: true
+        # iter20 osexitanalyzer: os.Exit в runAgent/runServer, не в main — против deep-exit.
+        - name: deep-exit
+          disabled: true
+
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - revive
+        text: "package-comments"
+      - path: _test\.go$
+        linters:
+          - revive
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+run:
+  timeout: 5m

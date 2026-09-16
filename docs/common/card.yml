@@ -1,0 +1,131 @@
+Card:
+  type: object
+  required: [id, kind, version, nonce, ciphertext, created_at, updated_at]
+  description: Данные банковской карты владельца (шифротекст).
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Идентификатор записи. Задаёт клиент при создании.
+      example: 550e8400-e29b-41d4-a716-446655440000
+    kind:
+      type: string
+      enum: [card]
+      description: Тип записи. Всегда `card`.
+      example: card
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: Версия записи для оптимистичной блокировки и синка.
+      example: 1
+    nonce:
+      type: string
+      format: byte
+      description: |
+        Nonce AES-256-GCM (12 байт), с которым клиент зашифровал `ciphertext`.
+        Сервер хранит как есть, не интерпретирует.
+      example: dGVzdG5vbmNlMTIh
+    meta:
+      type: string
+      description: |
+        Незашифрованные метаданные: название, тег, привязка к сайту.
+        Сервер хранит как есть и может фильтровать без расшифровки секрета.
+      example: work
+      maxLength: 4096
+    ciphertext:
+      type: string
+      format: byte
+      description: |
+        Шифротекст карты (номер, держатель, срок, CVV). Сервер не расшифровывает.
+      example: VGhpcyBpcyBub3QgcmVhbCBjaXBoZXJ0ZXh0
+    ciphertext_sha256:
+      type: string
+      format: byte
+      description: SHA-256 шифротекста. Опционально; если был при создании/обновлении — отдаётся обратно.
+      example: 47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
+    deleted_at:
+      type: string
+      format: date-time
+      description: Tombstone для синка на другие устройства. Заполнено только у удалённых записей.
+      example: 2026-09-04T10:00:00Z
+    created_at:
+      type: string
+      format: date-time
+      description: Время создания записи на сервере (RFC3339).
+      example: 2026-09-04T09:00:00Z
+    updated_at:
+      type: string
+      format: date-time
+      description: Время последнего изменения на сервере (RFC3339).
+      example: 2026-09-04T09:30:00Z
+
+CreateCard:
+  type: object
+  required: [id, version, nonce, ciphertext]
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Идентификатор.
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: |
+        При создании — `1`. Несовпадение — 409.
+    nonce:
+      type: string
+      format: byte
+      description: Nonce(number used once) - одноразовое случайное число, которое идет вместе с AES-256-GCM (12 байт).
+    meta:
+      type: string
+      description: Незашифрованные метаданные (название, тег, сайт).
+      maxLength: 4096
+    ciphertext:
+      type: string
+      format: byte
+      description: |
+        Зашифрованные данные карты (AES-256-GCM). Метаданные в `meta`, не здесь.
+        Сервер не расшифровывает. Макс. размер открытого текста — 1MiB.
+    ciphertext_sha256:
+      type: string
+      format: byte
+      description: SHA-256 шифротекста. Если передан — сервер сверяет.
+
+UpdateCard:
+  type: object
+  description: Тело запроса на обновление карты.
+  required: [version, nonce, ciphertext]
+  properties:
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: |
+        Текущая версия записи на сервере (оптимистичная блокировка).
+        Несовпадение — 409. После успеха сервер увеличивает версию на 1.
+      example: 1
+    nonce:
+      type: string
+      format: byte
+      description: |
+        Новый nonce AES-256-GCM (12 байт) для обновлённого шифротекста.
+        При каждом изменении клиент генерирует новый nonce.
+      example: dGVzdG5vbmNlMTIh
+    meta:
+      type: string
+      description: Незашифрованные метаданные (название, тег, сайт).
+      maxLength: 4096
+    ciphertext:
+      type: string
+      format: byte
+      description: |
+        Новый шифротекст карты (AES-256-GCM). Метаданные в `meta`, не здесь.
+        Сервер не расшифровывает. Макс. размер открытого текста — 1 MiB.
+      example: VGhpcyBpcyBub3QgcmVhbCBjaXBoZXJ0ZXh0
+    ciphertext_sha256:
+      type: string
+      format: byte
+      description: SHA-256 нового шифротекста. Если передан — сервер сверяет.
+      example: 47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=

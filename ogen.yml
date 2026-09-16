@@ -1,0 +1,41 @@
+# sets parser options.
+parser:
+  # enables type inference for schemas. Schema parser will try to detect schema type by its properties.
+  infer_types: true
+  #  enables remote references resolving. See https://github.com/ogen-go/ogen/issues/385.
+  allow_remote: true
+  # is maximum depth of schema generation. Default is 1000.
+  depth_limit: 1000
+
+# sets generator options.
+generator:
+  # sets generator features.
+  features:
+    enable:
+      # Enables paths server generation
+      - 'paths/server'
+      # Enables validation of client requests
+      - 'client/request/validation'
+
+      # Enables OpenTelemetry integration
+      - 'ogen/otel'
+      # Enables stub Handler generation
+      - 'ogen/unimplemented'
+      # Enables paths client generation
+      - 'paths/client'
+    disable:
+      # Disables webhooks client generation
+      - 'webhooks/client'
+      # Disables webhooks server generation
+      - 'webhooks/server'
+      # Disables client usage in security source implementations
+      - 'client/security/reentrant'
+      # Disables validation of client requests
+      - 'client/request/validation'
+      # Disables validation of server responses
+      - 'server/response/validation'
+      # Enables example tests generation
+      - 'debug/example_tests'
+      # Disables response validation
+      - 'server/response/validation'
+    disable_all: true

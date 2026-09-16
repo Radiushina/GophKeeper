@@ -27,6 +27,16 @@ go.work.sum
 # env file
 .env
 
+# Build output
+/bin/
+
+# Dev TLS material — generate locally with `make certs`, do not commit
+certs/*.crt
+certs/*.key
+certs/*.csr
+certs/*.srl
+certs/san.cnf
+
 # Editor/IDE
 # .idea/
 # .vscode/

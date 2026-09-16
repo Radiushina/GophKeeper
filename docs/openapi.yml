@@ -1,0 +1,661 @@
+openapi: 3.1.0
+
+info:
+  title: GophKeeper system API
+  version: 0.1.0
+  description: |
+    Документация клиент-серверного API GophKeeper: учётные записи, текстовые
+    записи, банковские карты и двоичные файлы владельца.
+
+    Секрет клиент шифрует до отправки (`ciphertext`). Метаданные (`meta`) —
+    название, тег, сайт — сервер хранит открыто, чтобы искать без расшифровки.
+    Ключ шифрования сервер не считает.
+
+tags:
+  - name: Auth
+    description: Методы авторизации
+  - name: Notes
+    description: Произвольные текстовые данные.
+  - name: Cards
+    description: Данные банковских карт.
+  - name: Files
+    description: Бинарные данные.
+
+paths:
+  /api/v1/user/register:
+    post:
+      x-ogen-operation-group: user
+      operationId: auth-register
+      summary: Регистрация пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/user.yml#/RegisterReq'
+      responses:
+        200:
+          description: 'Успешная регистрация'
+          headers:
+            Authorization:
+              $ref: '#/components/headers/Authorization'
+          content:
+            application/json:
+              schema:
+                $ref: './common/user.yml#/AuthUserRes'
+        400:
+          $ref: '#/components/responses/400'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/user/login:
+    post:
+      x-ogen-operation-group: user
+      operationId: auth-login
+      summary: Аутентификация пользователя
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ login, password ]
+              properties:
+                login:
+                  type: string
+                  description: Логин
+                  example: alisa
+                password:
+                  type: string
+                  description: Пароль
+                  example: test
+      responses:
+        200:
+          description: 'Успешная аутентификация'
+          headers:
+            Authorization:
+              $ref: '#/components/headers/Authorization'
+          content:
+            application/json:
+              schema:
+                $ref: './common/user.yml#/AuthUserRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/invalid_login_pass'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/notes:
+    post:
+      x-ogen-operation-group: notes
+      operationId: note-create
+      summary: Создать текстовую запись
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/note.yml#/CreateNote'
+      responses:
+        200:
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                $ref: './common/note.yml#/Note'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      x-ogen-operation-group: notes
+      operationId: list-notes
+      summary: Список текстовых записей владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/notes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/NoteID'
+    get:
+      x-ogen-operation-group: notes
+      operationId: note-get
+      summary: Текстовая запись владельца
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/note.yml#/Note'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      x-ogen-operation-group: notes
+      operationId: note-update
+      summary: Обновить текстовую запись
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/note.yml#/UpdateNote'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/note.yml#/Note'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      x-ogen-operation-group: notes
+      operationId: noteDelete
+      summary: Удалить текстовую запись (tombstone)
+      tags:
+        - Notes
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/note.yml#/Note'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/cards:
+    post:
+      x-ogen-operation-group: cards
+      operationId: card-create
+      summary: Создать запись банковской карты
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/card.yml#/CreateCard'
+      responses:
+        200:
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      x-ogen-operation-group: cards
+      operationId: list-cards
+      summary: Список карт владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/cards/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CardID'
+    get:
+      x-ogen-operation-group: cards
+      operationId: card-get
+      summary: Карта владельца
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      x-ogen-operation-group: cards
+      operationId: card-update
+      summary: Обновить запись банковской карты
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/card.yml#/UpdateCard'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      x-ogen-operation-group: cards
+      operationId: cardDelete
+      summary: Удалить карту (tombstone)
+      tags:
+        - Cards
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/card.yml#/Card'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/files:
+    post:
+      x-ogen-operation-group: files
+      operationId: file-create
+      summary: Создать бинарную запись
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/file.yml#/CreateFile'
+      responses:
+        200:
+          description: Запись создана. Тело шифротекста сохранено в S3.
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    get:
+      x-ogen-operation-group: files
+      operationId: list-files
+      summary: Список бинарных записей владельца (UI и офлайн-синк)
+      description: |
+        Только объекты текущего пользователя.
+        Если передан `since`, возвращаются записи с `updated_at >= since`,
+        включая tombstone (`deleted_at`), чтобы клиент удалил локальные копии.
+        Без `since` — все живые объекты (без tombstone).
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/SyncSince'
+      responses:
+        200:
+          description: Список записей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListRes'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+
+  /api/v1/files/{id}:
+    parameters:
+      - $ref: '#/components/parameters/FileID'
+    get:
+      x-ogen-operation-group: files
+      operationId: file-get
+      summary: Бинарная запись владельца
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Объект найден и принадлежит текущему пользователю
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+    put:
+      x-ogen-operation-group: files
+      operationId: file-update
+      summary: Обновить бинарную запись
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './common/file.yml#/UpdateFile'
+      responses:
+        200:
+          description: Запись обновлена, `version` увеличена
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409_secret'
+        500:
+          $ref: '#/components/responses/500'
+
+    delete:
+      x-ogen-operation-group: files
+      operationId: fileDelete
+      summary: Удалить бинарную запись (tombstone)
+      tags:
+        - Files
+      security:
+        - BearerAuth: [ ]
+      responses:
+        200:
+          description: Удалено (повторный вызов идемпотентен)
+          content:
+            application/json:
+              schema:
+                $ref: './common/file.yml#/File'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+components:
+  parameters:
+    NoteID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CardID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FileID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SyncSince:
+      name: since
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Курсор синка. RFC3339. Пусто — все живые объекты (без tombstone).
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT-токен, полученный при регистрации или входе.
+  headers:
+    Authorization:
+      description: |
+        JWT-токен сессии в формате `Bearer <token>`.
+        Возвращается при успешной регистрации и входе.
+      schema:
+        type: string
+      example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+  responses:
+    '400':
+      description: 'Неверный формат запроса'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          examples:
+            bind:
+              summary: Bind Example
+              value: { "msg": "bind" }
+            validate:
+              summary: Validate Example
+              value: { "msg": "validate" }
+    '401':
+      description: 'Пользователь не авторизован'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "user unauthorized" }
+    '403':
+      description: 'Ошибка проверки прав доступа'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "access forbidden" }
+    '404':
+      description: 'Объект не найден'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "not found" }
+    '409':
+      description: 'Логин уже занят'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "login is already taken" }
+    '409_secret':
+      description: |
+        Конфликт: такой `id` уже есть у владельца, либо несовпадение `version`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "conflict" }
+    '413':
+      description: |
+        Файл больше 512 MiB. Клиент обязан показать тот же смысл пользователю,
+        например `file is too large: 1.2 GiB, maximum is 512 MiB`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "file is too large: maximum is 512 MiB" }
+    '500':
+      description: 'Внутренняя ошибка сервера'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "internal server error" }
+    'invalid_login_pass':
+      description: 'Неверная пара логин/пароль'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnsuccessfulResponse'
+          example: { "msg": "invalid login/password pair" }
+  schemas:
+    NoteListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: './common/note.yml#/Note'
+    CardListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: './common/card.yml#/Card'
+    FileListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: './common/file.yml#/File'
+    UnsuccessfulResponse:
+      type: object
+      required: [ msg ]
+      properties:
+        msg:
+          type: string

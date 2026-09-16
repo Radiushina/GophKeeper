@@ -1,0 +1,73 @@
+package client
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/Radiushina/GophKeeper/gen/oas"
+	"github.com/Radiushina/GophKeeper/internal/vault"
+)
+
+func Login(ctx context.Context, app *App, login, password string) error {
+	res, err := app.Client.AuthLogin(ctx, &oas.AuthLoginReq{
+		Login:    login,
+		Password: password,
+	})
+	if err != nil {
+		if isOffline(err) {
+			return loginOffline(app, login, password)
+		}
+		return err
+	}
+	return handleAuthRes(app, res, password)
+}
+
+func handleAuthRes(app *App, res any, password string) error {
+	switch v := res.(type) {
+	case *oas.AuthUserResHeaders:
+		rememberToken(app, v.Response.Token)
+		app.SetUser(v.Response.User.Login)
+		if err := unlockVault(app, password, v.Response); err != nil {
+			return err
+		}
+		_ = saveSession(app, sessionCache{
+			Login:          v.Response.User.Login,
+			KdfSalt:        v.Response.KdfSalt,
+			ProtectedKey:   v.Response.ProtectedKey,
+			KeyHash:        v.Response.KeyHash,
+			KdfMemory:      uint32(v.Response.KdfParams.Memory),
+			KdfIterations:  uint32(v.Response.KdfParams.Iterations),
+			KdfParallelism: uint8(v.Response.KdfParams.Parallelism),
+			KdfVersion:     uint8(v.Response.KdfParams.Version),
+		})
+		app.logAuth(v)
+		return nil
+	case *oas.AuthLoginBadRequest:
+		return fmt.Errorf("%s", v.Msg)
+	case *oas.AuthLoginUnauthorized:
+		return fmt.Errorf("%s", v.Msg)
+	case *oas.AuthLoginInternalServerError:
+		return fmt.Errorf("%s", v.Msg)
+	default:
+		return fmt.Errorf("unexpected response %T", res)
+	}
+}
+
+func unlockVault(app *App, password string, session oas.AuthUserRes) error {
+	p := vault.Params{
+		Memory:      uint32(session.KdfParams.Memory),
+		Iterations:  uint32(session.KdfParams.Iterations),
+		Parallelism: uint8(session.KdfParams.Parallelism),
+		Version:     uint8(session.KdfParams.Version),
+	}
+	vk, err := vault.Unwrap(password, vault.Material{
+		Salt:         session.KdfSalt,
+		ProtectedKey: session.ProtectedKey,
+		KeyHash:      session.KeyHash,
+	}, p)
+	if err != nil {
+		return fmt.Errorf("unlock vault: %w", err)
+	}
+	app.SetVaultKey(vk)
+	return nil
+}

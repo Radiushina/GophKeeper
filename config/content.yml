@@ -1,0 +1,30 @@
+server:
+  http:
+    address: ":8080"
+  grpc:
+    address: ":9091"
+    tls:
+      cert_file: "certs/server.crt"
+      key_file: "certs/server.key"
+client:
+  http:
+    address: "http://localhost:8080"
+  grpc:
+    address: "localhost:9091"
+    tls:
+      ca_file: "certs/ca.crt"
+      server_name: "localhost"
+database:
+  dsn: ""
+auth:
+  jwt_secret: ""
+  jwt_ttl: 24h
+log:
+  level: info
+s3:
+  endpoint: "http://localhost:9000"
+  region: us-east-1
+  bucket: gophkeeper
+  access_key: minio
+  secret_key: minio12345
+  path_style: true

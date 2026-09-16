@@ -1,0 +1,8 @@
+extends:
+  - recommended
+
+rules:
+  no-unused-components: warn
+
+openapi:
+  schemasExpansionLevel: 3
